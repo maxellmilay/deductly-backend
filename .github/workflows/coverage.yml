@@ -20,11 +20,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup_python
-      - uses: ./.github/actions/job_url
-        id: job_url
-        with:
-          step_name: 'pytest'
+      - name: pip install
+        run: pip install -r requirements.txt
       - name: pytest
         run: |
           pytest

@@ -1,0 +1,19 @@
+name: CI workflow
+on: push
+
+jobs:
+    lint:
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: pip install
+              run: pip install black pre-commit
+
+            - name: setup pre-commit hook
+              run: pre-commit install
+
+            - name: Lint code
+              run: black . --check --verbose --diff --color

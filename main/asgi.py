@@ -13,6 +13,8 @@ from django.core.asgi import get_asgi_application
 
 load_dotenv()
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", f"main.settings.{os.getenv('ENVIRONMENT')}")
+os.environ.setdefault(
+    "DJANGO_SETTINGS_MODULE", f"main.settings.{os.getenv('ENVIRONMENT')}"
+)
 
 application = get_asgi_application()

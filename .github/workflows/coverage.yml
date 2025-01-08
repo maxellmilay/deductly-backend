@@ -15,28 +15,43 @@ permissions:
   pull-requests: write
 
 jobs:
-  build:
+  coverage:
+    name: coverage
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-
-      - name: Set up Python 3.12
-        uses: actions/setup-python@v2
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup_python
+      - uses: ./.github/actions/job_url
+        id: job_url
         with:
-          python-version: 3.12.0
-
-      - name: Install dependencies
+          step_name: 'pytest'
+      - name: pytest
         run: |
-          python -m pip install --upgrade pip
-          pip install flake8 pytest pytest-cov
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-
-      - name: Build coverage file
+          pytest
+      - name: Test coverage summary report
+        id: coverage_report
+        if: always()
         run: |
-          pytest --junitxml=pytest.xml --cov-report=term-missing:skip-covered --cov=app tests/ | tee pytest-coverage.txt
-
-      - name: Pytest coverage comment
-        uses: MishaKav/pytest-coverage-comment@main
+          {
+            echo "COVERAGE_REPORT<<EOF"
+            coverage report --format=markdown --show-missing --skip-covered
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+      - name: Remove previous coverage comments
+        uses: ./.github/actions/remove_comments
+        if: always()
         with:
-          pytest-coverage-path: ./pytest-coverage.txt
-          junitxml-path: ./pytest.xml
+          identifier: coverage
+      - name: Test coverage PR comment
+        id: coverage_comment
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `[coverage](${{steps.job_url.outputs.job_url}})
+              \r\n\r\n${{steps.coverage_report.outputs.COVERAGE_REPORT}}`
+            })

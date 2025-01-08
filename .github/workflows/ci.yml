@@ -10,7 +10,10 @@ jobs:
               uses: actions/checkout@v4
 
             - name: pip install
-              run: pip install black
+              run: pip install black pre-commit
+
+            - name: setup pre-commit hook
+              run: pre-commit install
 
             - name: Lint code
               run: black . --check --verbose --diff --color

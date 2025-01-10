@@ -10,9 +10,8 @@ def verify_google_id_token(google_id_token: str):
     try:
         request = requests.Request()
         payload = id_token.verify_oauth2_token(
-            google_id_token, request, os.getenv("OAUTH_BACKEND_CLIENT_ID")
+            google_id_token, request, os.getenv("OAUTH_IOS_CLIENT_ID")
         )
-
         return payload
     except ValueError as e:
         print("Invalid ID Token: ", e)

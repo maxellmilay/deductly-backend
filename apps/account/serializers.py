@@ -11,3 +11,5 @@ class GoogleUserInfoSerializer(Serializer):
     email = serializers.EmailField()
     name = serializers.CharField(max_length=512)
     picture = serializers.CharField(max_length=512)
+    given_name = serializers.CharField(max_length=512)
+    family_name = serializers.CharField(max_length=512)

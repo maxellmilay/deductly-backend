@@ -1,10 +1,15 @@
 from django.db import transaction
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from .serializers import GoogleSSOSerializer, GoogleUserInfoSerializer
+from .serializers import (
+    GoogleSSOSerializer,
+    GoogleUserInfoSerializer,
+    CustomUserSerializer,
+)
 from .utils.sso import verify_google_id_token
 from .utils.jwt import sign_as_jwt
 from .models import CustomUser
+from main.utils.generic_api import GenericView
 
 
 class GoogleSSOView(APIView):
@@ -57,7 +62,7 @@ class GoogleSSOView(APIView):
             else:
                 print(f"User {user.username} Already Exists!")
 
-            payload = {"email": user.username}
+            payload = {"email": user.email}
 
             token = sign_as_jwt(payload)
 
@@ -65,3 +70,9 @@ class GoogleSSOView(APIView):
 
         except ValueError:
             return Response({"error": "Invalid Token ID"}, status=404)
+
+
+class UserView(GenericView):
+    queryset = CustomUser.objects.all()
+    serializer_class = CustomUserSerializer
+    size_per_request = 1000

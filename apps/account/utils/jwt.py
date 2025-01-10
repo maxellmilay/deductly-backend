@@ -1,6 +1,7 @@
-from jwt import encode, decode
+from jwt import encode, decode, ExpiredSignatureError, InvalidTokenError
 from dotenv import load_dotenv
 import os
+import datetime
 
 
 def sign_as_jwt(payload, algorithm="HS256"):
@@ -16,9 +17,15 @@ def verify_jwt_token(token: str, email: str, algorithm="HS256"):
     load_dotenv()
 
     jwt_secret_key = os.getenv("JWT_SECRET_KEY")
+
     payload = decode(token, jwt_secret_key, algorithms=[algorithm])
 
-    if email == payload["email"]:
-        return True
-    else:
-        return False
+    if email != payload.get("email"):
+        raise InvalidTokenError
+
+    if "exp" in payload:
+        exp_timestamp = payload["exp"]
+        if datetime.datetime.now(datetime.timezone.utc).timestamp() > exp_timestamp:
+            raise ExpiredSignatureError
+
+    return payload

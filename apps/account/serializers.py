@@ -13,3 +13,9 @@ class GoogleUserInfoSerializer(Serializer):
     picture = serializers.CharField(max_length=512)
     given_name = serializers.CharField(max_length=512)
     family_name = serializers.CharField(max_length=512)
+
+
+class CustomUserSerializer(Serializer):
+    first_name = serializers.CharField(max_length=512)
+    last_name = serializers.CharField(max_length=512)
+    username = serializers.CharField(max_length=512)

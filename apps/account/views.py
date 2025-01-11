@@ -85,10 +85,12 @@ class AuthenticationView(APIView):
         request_serializer = AuthenticationSerializer(request.data)
         request_data = request_serializer.data
 
-        email = request_data["email"]
+        username = request_data["username"]
         password = request_data["password"]
 
-        user = authenticate(email=email, password=password)
+        print(username, password)
+
+        user = authenticate(username=username, password=password)
 
         if user is not None:
             print(f"{user.username} successfully authenticated!")

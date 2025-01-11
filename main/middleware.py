@@ -24,10 +24,12 @@ class JWTAuthMiddleware:
         self.get_response = get_response
         self.excluded_paths = [
             "/api/v1/sso/google/",
+            "/api/v1/authenticate/",
+            "/api/v1/registration/",
         ]
 
     def __call__(self, request):
-        if request.path in self.excluded_paths:
+        if request.path in self.excluded_paths or request.path.startswith("/admin/"):
             return self.get_response(request)
 
         # Process JWT authentication for other paths

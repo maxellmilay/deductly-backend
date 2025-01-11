@@ -25,6 +25,10 @@ class GoogleSSOView(APIView):
     @transaction.atomic
     def post(self, request, format=None):
         request_serializer = GoogleSSOSerializer(request.data)
+
+        if not request_serializer.is_valid():
+            return Response(request_serializer.errors, status=400)
+
         request_data = request_serializer.data
 
         google_id_token = request_data["id_token"]
@@ -83,6 +87,10 @@ class UserView(GenericView):
 class AuthenticationView(APIView):
     def post(self, request, format=None):
         request_serializer = AuthenticationSerializer(request.data)
+
+        if not request_serializer.is_valid():
+            return Response(request_serializer.errors, status=400)
+
         request_data = request_serializer.data
 
         username = request_data["username"]

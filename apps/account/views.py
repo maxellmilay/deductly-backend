@@ -24,7 +24,7 @@ class GoogleSSOView(APIView):
 
     @transaction.atomic
     def post(self, request, format=None):
-        request_serializer = GoogleSSOSerializer(request.data)
+        request_serializer = GoogleSSOSerializer(data=request.data)
 
         if not request_serializer.is_valid():
             return Response(request_serializer.errors, status=400)
@@ -86,7 +86,7 @@ class UserView(GenericView):
 
 class AuthenticationView(APIView):
     def post(self, request, format=None):
-        request_serializer = AuthenticationSerializer(request.data)
+        request_serializer = AuthenticationSerializer(data=request.data)
 
         if not request_serializer.is_valid():
             return Response(request_serializer.errors, status=400)
@@ -106,7 +106,7 @@ class AuthenticationView(APIView):
             payload = {"email": user.email}
             token = sign_as_jwt(payload)
 
-            return Response({"token": token})
+            return Response({"token": token, "email": user.email})
 
         else:
             print("Failed authentication")
@@ -146,7 +146,7 @@ class RegistrationView(APIView):
 
             print(f"Google User {user.username} Successfully Created!")
 
-            return Response({"email": email})
+            return Response({"username": user.username})
         else:
             print(f"User {user.username} Already Exists!")
             return Response({"error": "User already exists"}, status=409)

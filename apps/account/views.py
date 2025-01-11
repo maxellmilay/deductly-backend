@@ -7,6 +7,7 @@ from .serializers import (
     GoogleUserInfoSerializer,
     CustomUserSerializer,
     AuthenticationSerializer,
+    RegistrationSerializer,
 )
 from .utils.sso import verify_google_id_token
 from .utils.jwt import sign_as_jwt
@@ -43,7 +44,7 @@ class GoogleSSOView(APIView):
             except Exception as e:
                 print("CustomUser Query Error:", e)
 
-            if not user:
+            if user is None:
                 google_email = payload_data["email"]
                 google_username = payload_data["name"]
                 google_first_name = payload_data["given_name"]
@@ -100,3 +101,39 @@ class AuthenticationView(APIView):
         else:
             print("Failed authentication")
             return Response({"error": "Failed Authentication"}, status=401)
+
+
+class RegistrationView(APIView):
+    def post(self, request, format=None):
+        request_serializer = RegistrationSerializer
+        request_data = request_serializer.data
+
+        email = request_data["email"]
+
+        username = request_data["username"]
+        first_name = request_data["first_name"]
+        last_name = request_data["last_name"]
+        password = request_data["password"]
+
+        user = None
+
+        try:
+            user = CustomUser.objects.get(email=email)
+        except Exception as e:
+            print("CustomUser Query Error:", e)
+
+        if user is None:
+            user = CustomUser.objects.create_user(
+                username=username,
+                first_name=first_name,
+                last_name=last_name,
+                email=email,
+                password=password,
+            )
+
+            print(f"Google User {user.username} Successfully Created!")
+
+            return Response({"email": email})
+        else:
+            print(f"User {user.username} Already Exists!")
+            return Response({"error": "User already exists"}, status=409)

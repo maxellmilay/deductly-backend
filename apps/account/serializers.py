@@ -24,3 +24,11 @@ class CustomUserSerializer(Serializer):
 class AuthenticationSerializer(Serializer):
     email = serializers.CharField(max_length=512)
     password = serializers.CharField(max_length=512)
+
+
+class RegistrationSerializer(Serializer):
+    usernam = serializers.CharField(max_length=512)
+    first_name = serializers.CharField(max_length=512)
+    last_name = serializers.CharField(max_length=512)
+    email = serializers.CharField(max_length=512)
+    password = serializers.CharField(max_length=512)

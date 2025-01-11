@@ -121,13 +121,7 @@ class RegistrationView(APIView):
             return Response(request_serializer.errors, status=400)
 
         request_data = request_serializer.data
-
         email = request_data["email"]
-
-        username = request_data["username"]
-        first_name = request_data["first_name"]
-        last_name = request_data["last_name"]
-        password = request_data["password"]
 
         user = None
 
@@ -137,6 +131,11 @@ class RegistrationView(APIView):
             print("CustomUser Query Error:", e)
 
         if user is None:
+            username = request_data["username"]
+            first_name = request_data["first_name"]
+            last_name = request_data["last_name"]
+            password = request_data["password"]
+
             user = CustomUser.objects.create_user(
                 username=username,
                 first_name=first_name,

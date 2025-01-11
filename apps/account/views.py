@@ -1,10 +1,12 @@
 from django.db import transaction
+from django.contrib.auth import authenticate
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from .serializers import (
     GoogleSSOSerializer,
     GoogleUserInfoSerializer,
     CustomUserSerializer,
+    AuthenticationSerializer,
 )
 from .utils.sso import verify_google_id_token
 from .utils.jwt import sign_as_jwt
@@ -63,7 +65,6 @@ class GoogleSSOView(APIView):
                 print(f"User {user.username} Already Exists!")
 
             payload = {"email": user.email}
-
             token = sign_as_jwt(payload)
 
             return Response({"token": token})
@@ -76,3 +77,26 @@ class UserView(GenericView):
     queryset = CustomUser.objects.all()
     serializer_class = CustomUserSerializer
     size_per_request = 1000
+
+
+class AuthenticationView(APIView):
+    def post(self, request, format=None):
+        request_serializer = AuthenticationSerializer(request.data)
+        request_data = request_serializer.data
+
+        email = request_data["email"]
+        password = request_data["password"]
+
+        user = authenticate(email=email, password=password)
+
+        if user is not None:
+            print(f"{user.username} successfully authenticated!")
+
+            payload = {"email": user.email}
+            token = sign_as_jwt(payload)
+
+            return Response({"token": token})
+
+        else:
+            print("Failed authentication")
+            return Response({"error": "Failed Authentication"}, status=401)

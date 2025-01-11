@@ -107,7 +107,11 @@ class AuthenticationView(APIView):
 
 class RegistrationView(APIView):
     def post(self, request, format=None):
-        request_serializer = RegistrationSerializer
+        request_serializer = RegistrationSerializer(data=request.data)
+
+        if not request_serializer.is_valid():
+            return Response(request_serializer.errors, status=400)
+        
         request_data = request_serializer.data
 
         email = request_data["email"]

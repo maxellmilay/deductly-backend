@@ -27,7 +27,7 @@ class AuthenticationSerializer(Serializer):
 
 
 class RegistrationSerializer(Serializer):
-    usernam = serializers.CharField(max_length=512)
+    username = serializers.CharField(max_length=512)
     first_name = serializers.CharField(max_length=512)
     last_name = serializers.CharField(max_length=512)
     email = serializers.CharField(max_length=512)

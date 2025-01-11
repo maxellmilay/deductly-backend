@@ -1,12 +1,12 @@
-from rest_framework.serializers import Serializer
+from .models import CustomUser
 from rest_framework import serializers
 
 
-class GoogleSSOSerializer(Serializer):
+class GoogleSSOSerializer(serializers.Serializer):
     id_token = serializers.CharField(max_length=512)
 
 
-class GoogleUserInfoSerializer(Serializer):
+class GoogleUserInfoSerializer(serializers.Serializer):
     sub = serializers.CharField(max_length=512)
     email = serializers.EmailField()
     name = serializers.CharField(max_length=512)
@@ -15,18 +15,18 @@ class GoogleUserInfoSerializer(Serializer):
     family_name = serializers.CharField(max_length=512)
 
 
-class CustomUserSerializer(Serializer):
-    first_name = serializers.CharField(max_length=512)
-    last_name = serializers.CharField(max_length=512)
-    username = serializers.CharField(max_length=512)
+class CustomUserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CustomUser
+        fields = ["first_name", "last_name", "username"]
 
 
-class AuthenticationSerializer(Serializer):
+class AuthenticationSerializer(serializers.Serializer):
     username = serializers.CharField(max_length=512)
     password = serializers.CharField(max_length=512)
 
 
-class RegistrationSerializer(Serializer):
+class RegistrationSerializer(serializers.Serializer):
     username = serializers.CharField(max_length=512)
     first_name = serializers.CharField(max_length=512)
     last_name = serializers.CharField(max_length=512)

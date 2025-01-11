@@ -111,7 +111,7 @@ class RegistrationView(APIView):
 
         if not request_serializer.is_valid():
             return Response(request_serializer.errors, status=400)
-        
+
         request_data = request_serializer.data
 
         email = request_data["email"]

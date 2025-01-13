@@ -3,7 +3,7 @@ from rest_framework import serializers
 
 
 class GoogleSSOSerializer(serializers.Serializer):
-    id_token = serializers.CharField(max_length=512)
+    id_token = serializers.CharField(max_length=2048)
 
 
 class GoogleUserInfoSerializer(serializers.Serializer):

@@ -32,7 +32,6 @@ class GoogleSSOView(APIView):
         request_data = request_serializer.data
 
         google_id_token = request_data["id_token"]
-
         try:
             payload = verify_google_id_token(google_id_token)
 

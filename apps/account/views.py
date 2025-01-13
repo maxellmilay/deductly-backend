@@ -104,13 +104,19 @@ class AuthenticationView(APIView):
             print(f"{user.username} successfully authenticated!")
 
             payload = {"email": user.email}
-            token = sign_as_jwt(payload)
+
+            try:
+                token = sign_as_jwt(payload)
+            except:
+                return Response({"error": "Failed JWT Signing"}, status=500)
 
             return Response({"token": token, "email": user.email})
 
         else:
-            print("Failed authentication")
-            return Response({"error": "Failed Authentication"}, status=401)
+            print("Failed Authentication")
+            return Response(
+                {"error": "Failed Authentication: Incorrect Credentials"}, status=401
+            )
 
 
 class RegistrationView(APIView):

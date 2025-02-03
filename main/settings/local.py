@@ -44,7 +44,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "corsheaders",
     "apps.account",
-    "apps.extract_text",
+    "apps.extract_text.apps.ExtractTextConfig",
 ]
 
 MIDDLEWARE = [

@@ -3,4 +3,4 @@ from django.apps import AppConfig
 
 class ExtractTextConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
-    name = "extract_text"
+    name = "apps.extract_text"

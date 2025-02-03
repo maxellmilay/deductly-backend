@@ -5,7 +5,7 @@ from PIL import Image
 import io
 
 # If needed, set the tesseract command (adjust the path accordingly)
-# pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 
 
 def preprocess_image(image):

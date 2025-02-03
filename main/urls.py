@@ -11,4 +11,5 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/v1/", include("apps.account.urls")),
     path("", home_view),
+    path("extract_text/", include("apps.extract_text.urls")),
 ]

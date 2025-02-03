@@ -1,138 +1,199 @@
 import cv2
 import numpy as np
 import pytesseract
-import imutils
-from imutils.perspective import four_point_transform
-from PIL import Image
 import io
 import csv
 import re
+import os
 
-# If needed, set the tesseract command (adjust the path accordingly)
+# Tesseract path configuration
 pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 
 
-def preprocess_image(image):
+def detect_and_crop_receipt(image):
     """
-    Enhanced preprocessing for receipt OCR
+    Detect receipt edges and crop the image
     """
-    # Create a copy and resize while maintaining aspect ratio
-    height = 1800  # Target height for better OCR
-    aspect = image.shape[0] / image.shape[1]
-    width = int(height / aspect)
-    image_copy = cv2.resize(image, (width, height))
-
     # Convert to grayscale
-    gray = cv2.cvtColor(image_copy, cv2.COLOR_BGR2GRAY)
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
-    # Apply adaptive thresholding
-    thresh = cv2.adaptiveThreshold(
-        gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 21, 10
+    # Apply bilateral filter to reduce noise while keeping edges sharp
+    blur = cv2.bilateralFilter(gray, 9, 75, 75)
+
+    # Apply Canny edge detection
+    edges = cv2.Canny(blur, 50, 150)
+
+    # Dilate edges to connect any broken lines
+    kernel = np.ones((5, 5), np.uint8)
+    dilated = cv2.dilate(edges, kernel, iterations=1)
+
+    # Find contours
+    contours, _ = cv2.findContours(dilated, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    if not contours:
+        return image
+
+    # Find the largest contour (should be the receipt)
+    receipt_contour = max(contours, key=cv2.contourArea)
+
+    # Get the minimum area rectangle
+    rect = cv2.minAreaRect(receipt_contour)
+    box = cv2.boxPoints(rect)
+    box = np.int32(box)
+
+    # Get width and height of the receipt
+    width = int(rect[1][0])
+    height = int(rect[1][1])
+
+    # Source points
+    src_pts = box.astype("float32")
+
+    # Destination points
+    dst_pts = np.array(
+        [[0, height - 1], [0, 0], [width - 1, 0], [width - 1, height - 1]],
+        dtype="float32",
     )
 
-    # Denoise
-    denoised = cv2.fastNlMeansDenoising(thresh)
+    # Get perspective transform matrix
+    M = cv2.getPerspectiveTransform(src_pts, dst_pts)
 
-    return denoised
+    # Warp the image
+    warped = cv2.warpPerspective(image, M, (width, height))
+
+    return warped
+
+
+def preprocess_for_ocr(image):
+    """
+    Simplified preprocessing optimized for clean receipt images
+    """
+    # Convert to grayscale if not already
+    if len(image.shape) == 3:
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    else:
+        gray = image
+
+    # Resize to a larger height while maintaining aspect ratio
+    height = 2000
+    aspect_ratio = gray.shape[1] / gray.shape[0]
+    width = int(height * aspect_ratio)
+    resized = cv2.resize(gray, (width, height), interpolation=cv2.INTER_CUBIC)
+
+    # Simple binary thresholding
+    _, binary = cv2.threshold(resized, 180, 255, cv2.THRESH_BINARY)
+
+    # Add white border
+    border_size = 20
+    with_border = cv2.copyMakeBorder(
+        binary,
+        border_size,
+        border_size,
+        border_size,
+        border_size,
+        cv2.BORDER_CONSTANT,
+        value=255,
+    )
+
+    return with_border
+
+
+def extract_text_from_image(image_file):
+    """
+    Main function to process receipt image and extract text
+    """
+    try:
+        # Create processed_images directory if it doesn't exist
+        debug_dir = os.path.join(os.path.dirname(__file__), "processed_images")
+        os.makedirs(debug_dir, exist_ok=True)
+
+        # Read image file
+        file_bytes = np.asarray(bytearray(image_file.read()), dtype=np.uint8)
+        image = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
+
+        if image is None:
+            raise Exception("Failed to load image")
+
+        # Preprocess the image
+        processed = preprocess_for_ocr(image)
+
+        # Save debug image to processed_images folder
+        debug_path = os.path.join(debug_dir, "debug_processed.png")
+        cv2.imwrite(debug_path, processed)
+
+        # Configure Tesseract for receipt text
+        custom_config = (
+            "--psm 6 "  # Assume uniform block of text
+            "--oem 3 "  # Use LSTM OCR Engine
+            "-c tessedit_char_blacklist=@#$%^&*()_+=[]{}|\\<>~"
+        )
+
+        # Extract text
+        text = pytesseract.image_to_string(processed, config=custom_config, lang="eng")
+
+        # Clean up the text
+        text = text.strip()
+
+        if not text:
+            raise Exception("No text could be extracted from the image")
+
+        # Parse the text into structured data
+        structured_data = parse_receipt_text(text)
+
+        return text, structured_data
+
+    except Exception as e:
+        raise Exception(f"Error processing receipt image: {str(e)}")
 
 
 def parse_receipt_text(text):
     """
-    Enhanced parsing of receipt text with better price detection
+    Parse receipt text into structured data
     """
     lines = text.split("\n")
     items = []
 
-    # Common price patterns in receipts
-    price_pattern = r"\$?\d+\.\d{2}\b"  # Matches prices like $12.34 or 12.34
+    # Match price formats: XX.XX or $XX.XX
+    price_pattern = r"\$?\d+\.\d+"
 
     for line in lines:
         line = line.strip()
         if not line:
             continue
 
-        # Look for price at the end of the line
-        price_matches = list(re.finditer(price_pattern, line))
-        if price_matches:
-            # Get the last price in the line (usually the item price)
-            price_match = price_matches[-1]
-            price = price_match.group()
+        # Find all prices in the line
+        prices = re.findall(price_pattern, line)
 
-            # Get description (everything before the price)
-            description = line[: price_match.start()].strip()
+        if prices:
+            # Get the last price (usually the item price)
+            price = prices[-1]
+            # Get everything before the price as description
+            description = line[: line.rfind(price)].strip()
 
-            # Clean up the description
-            description = re.sub(r"\s+", " ", description)  # Remove extra spaces
-            description = description.strip(".- ")  # Remove common separators
-
-            if description:  # Only add if we have a description
+            if description:
                 items.append({"description": description, "price": price})
         else:
-            # Store lines without prices if they look meaningful
-            line = re.sub(r"\s+", " ", line).strip()
-            if len(line) > 1 and not line.isspace():  # Skip very short or empty lines
+            # Keep non-price lines that might be important
+            if len(line) > 3 and not line.isspace():
                 items.append({"description": line, "price": ""})
 
     return items
 
 
-def extract_text_from_image(image_file):
-    """
-    Enhanced text extraction with better OCR configuration
-    """
-    try:
-        # Read image file into memory using OpenCV
-        file_bytes = np.asarray(bytearray(image_file.read()), dtype=np.uint8)
-        img = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
-
-        if img is None:
-            raise Exception("Failed to load image")
-
-        processed_img = preprocess_image(img)
-
-        # Configure Tesseract with better parameters for receipt OCR
-        custom_config = r'--oem 3 --psm 6 -c tessedit_char_whitelist="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz.,!@#$%^&*()_+-=\/ "'
-
-        text = pytesseract.image_to_string(
-            processed_img,
-            config=custom_config,
-            lang="eng",  # Ensure English language is used
-        )
-
-        # Clean up the extracted text
-        text = text.replace("|", "I")  # Common OCR mistake
-        text = re.sub(r"[\x00-\x1F\x7F-\x9F]", "", text)  # Remove control characters
-
-        # Parse the text into structured data
-        structured_data = parse_receipt_text(text)
-
-        # Don't return empty results
-        if not text.strip() or not structured_data:
-            raise Exception("No text could be extracted from the image")
-
-        return text, structured_data
-    except Exception as e:
-        raise Exception(f"Error processing receipt image: {str(e)}")
-
-
 def generate_csv(structured_data):
     """
-    Generate CSV with better formatting
+    Generate CSV from structured data
     """
-    if not structured_data:
-        return "description,price\n"  # Return header only if no data
-
     output = io.StringIO()
     writer = csv.DictWriter(output, fieldnames=["description", "price"])
     writer.writeheader()
 
-    # Filter out empty rows and clean data
     for item in structured_data:
-        if item["description"].strip():  # Only write rows with descriptions
-            cleaned_item = {
-                "description": item["description"].strip(),
-                "price": item["price"].strip(),
-            }
-            writer.writerow(cleaned_item)
+        if item["description"].strip():
+            writer.writerow(
+                {
+                    "description": item["description"].strip(),
+                    "price": item["price"].strip(),
+                }
+            )
 
     return output.getvalue()

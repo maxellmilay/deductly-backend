@@ -1,8 +1,9 @@
 # apps/extract_text/urls.py
 
 from django.urls import path
-from .views import upload_receipt
+from . import views
 
 urlpatterns = [
-    path("upload/", upload_receipt, name="upload_receipt"),
+    path("upload/", views.upload_receipt, name="upload_receipt"),
+    path("download-csv/", views.download_csv, name="download_csv"),
 ]

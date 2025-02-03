@@ -2,6 +2,18 @@
 <html>
 <head>
     <title>Upload Receipt</title>
+    <style>
+        .result-container {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .extracted-text {
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+    </style>
 </head>
 <body>
     <h1>Upload Receipt for Text Extraction</h1>
@@ -10,5 +22,21 @@
         <input type="file" name="receipt_image" accept="image/*">
         <button type="submit">Extract Text</button>
     </form>
+
+    {% if extracted_text %}
+    <div class="result-container">
+        <h2>Extracted Text:</h2>
+        <pre class="extracted-text">{{ extracted_text }}</pre>
+        
+        <h3>Download Results:</h3>
+        <a href="{% url 'download_csv' %}" class="download-button">Download as CSV</a>
+    </div>
+    {% endif %}
+
+    {% if error %}
+    <div class="error-container">
+        <p class="error-message">{{ error }}</p>
+    </div>
+    {% endif %}
 </body>
 </html> 

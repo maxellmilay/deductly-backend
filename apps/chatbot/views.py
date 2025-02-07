@@ -7,7 +7,7 @@ from rest_framework import status
 from .models import Chat
 from .serializers import ChatSerializer
 from .utils.main import generate_answer
-from account.models import CustomUser
+from apps.account.models import CustomUser
 from datetime import datetime
 
 
@@ -24,7 +24,7 @@ class ChatView(APIView):
 
             # Save to database
             user = (
-                CustomUser.objects.get(id=request.user.id)
+                CustomUser.objects.get(pk=request.user.id)
                 if request.user.is_authenticated
                 else None
             )

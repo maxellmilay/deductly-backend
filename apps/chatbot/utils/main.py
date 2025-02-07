@@ -21,18 +21,20 @@ data_path = os.path.join(current_dir, "data.txt")
 loader = TextLoader(data_path, encoding="utf-8")
 document = loader.load()
 
-template = """
-You are a helpful assistant that can answer questions about the text provided.
 
-Text: {context}
+def generate_answer(question: str) -> str:
+    # generate answer for the question
+    template = """
+    You are a helpful assistant that can answer questions about the text provided.
 
-Question: {question}
-"""
+    Text: {context}
 
-question = "what is tax deduction"
-final_template = template.format(context=document, question=question)
-answer = deepseek_chain.invoke(final_template)
-final_answer = (
-    answer.split("</think>")[-1].strip() if "</think>" in answer else answer.strip()
-)
-print(final_answer)
+    Question: {question}
+    """
+
+    final_template = template.format(context=document, question=question)
+    answer = deepseek_chain.invoke(final_template)
+    final_answer = (
+        answer.split("</think>")[-1].strip() if "</think>" in answer else answer.strip()
+    )
+    return final_answer

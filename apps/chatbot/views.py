@@ -7,6 +7,8 @@ from rest_framework import status
 from .models import Chat
 from .serializers import ChatSerializer
 from .utils.main import generate_answer
+from account.models import CustomUser
+from datetime import datetime
 
 
 class ChatView(APIView):
@@ -18,11 +20,24 @@ class ChatView(APIView):
             )
 
         try:
-            # Your existing LangChain logic
             final_answer = generate_answer(question)
 
             # Save to database
-            chat = Chat.objects.create(question=question, answer=final_answer)
+            user = (
+                CustomUser.objects.get(id=request.user.id)
+                if request.user.is_authenticated
+                else None
+            )
+
+            if user:
+                chat = Chat.objects.create(
+                    question=question, answer=final_answer, user=user
+                )
+            else:
+                return Response(
+                    {"answer": final_answer, "date": datetime.now()},
+                    status=status.HTTP_200_OK,
+                )
 
             serializer = ChatSerializer(chat)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -32,6 +47,8 @@ class ChatView(APIView):
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
+
+class ChatHistoryView(APIView):
     def get(self, request):
         chats = Chat.objects.all()
         serializer = ChatSerializer(chats, many=True)

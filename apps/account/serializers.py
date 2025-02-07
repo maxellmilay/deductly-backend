@@ -18,7 +18,14 @@ class GoogleUserInfoSerializer(serializers.Serializer):
 class CustomUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
-        fields = ["first_name", "last_name", "username"]
+        fields = [
+            "id",
+            "first_name",
+            "last_name",
+            "username",
+            "email",
+            "profile_picture",
+        ]
 
 
 class AuthenticationSerializer(serializers.Serializer):

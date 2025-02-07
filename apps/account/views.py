@@ -69,9 +69,12 @@ class GoogleSSOView(APIView):
                 print(f"User {user.username} Already Exists!")
 
             payload = {"email": user.email}
+
+            user_serializer = CustomUserSerializer(user)
+
             token = sign_as_jwt(payload)
 
-            return Response({"token": token})
+            return Response({"token": token, "user": user_serializer.data})
 
         except ValueError:
             return Response({"error": "Invalid Token ID"}, status=404)
@@ -100,8 +103,6 @@ class AuthenticationView(APIView):
         user = authenticate(username=username, password=password)
 
         if user is not None:
-            print(f"{user.username} successfully authenticated!")
-
             payload = {"email": user.email}
 
             try:
@@ -109,7 +110,10 @@ class AuthenticationView(APIView):
             except:
                 return Response({"error": "Failed JWT Signing"}, status=500)
 
-            return Response({"token": token, "email": user.email})
+            user_serializer = CustomUserSerializer(user)
+
+            print(f"{user_serializer.data['username']} successfully authenticated!")
+            return Response({"token": token, "user": user_serializer.data})
 
         else:
             print("Failed Authentication")

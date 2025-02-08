@@ -49,7 +49,12 @@ class ChatView(APIView):
 
 
 class ChatHistoryView(APIView):
-    def get(self, request):
-        chats = Chat.objects.all()
-        serializer = ChatSerializer(chats, many=True)
-        return Response(serializer.data)
+    def get(self, request, user_id):
+        try:
+            chats = Chat.objects.filter(user_id=user_id).order_by("-timestamp")
+            serializer = ChatSerializer(chats, many=True)
+            return Response(serializer.data)
+        except CustomUser.DoesNotExist:
+            return Response(
+                {"error": "User not found"}, status=status.HTTP_404_NOT_FOUND
+            )

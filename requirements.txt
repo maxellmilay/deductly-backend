@@ -34,3 +34,6 @@ rsa==4.9
 sqlparse==0.5.3
 urllib3==2.3.0
 virtualenv==20.28.1
+langchain
+langchain-groq
+langchain-community

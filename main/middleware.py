@@ -1,6 +1,5 @@
 from jwt import ExpiredSignatureError, InvalidTokenError
 from django.http import JsonResponse
-from django.conf import settings
 from django.contrib.auth.models import AnonymousUser
 from apps.account.utils.jwt import verify_jwt_token
 

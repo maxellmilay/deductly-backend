@@ -22,3 +22,6 @@ class ReceiptItemView(GenericView):
     serializer_class = ReceiptItemSerializer
     # permission_classes = [IsAuthenticated]
     cache_key_prefix = "receipt_item"
+
+    def pre_create(self, request):
+        request.data["receipt"] = Receipt.objects.get(id=request.data["receipt"])

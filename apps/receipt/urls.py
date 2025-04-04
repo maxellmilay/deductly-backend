@@ -21,12 +21,12 @@ urlpatterns = [
         name="vendor-detail",
     ),
     path(
-        "receipt-item/",
+        "item/",
         ReceiptItemView.as_view({"get": "list", "post": "create"}),
         name="receipt-item-list",
     ),
     path(
-        "receipt-item/<int:pk>/",
+        "item/<int:pk>/",
         ReceiptItemView.as_view(
             {"get": "retrieve", "put": "update", "delete": "destroy"}
         ),

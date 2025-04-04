@@ -179,7 +179,7 @@
 
 ## Receipt Item Management
 
-**Endpoint:** `/receipt-item/`
+**Endpoint:** `/item/`
 
 ### GET
 - **Request Method:** GET
@@ -237,7 +237,7 @@
   }
   ```
 
-**Endpoint:** `/receipt-item/<id>/`
+**Endpoint:** `/item/<id>/`
 
 ### GET, PUT, DELETE
 - Similar to the above endpoint but for a specific receipt item by ID. 

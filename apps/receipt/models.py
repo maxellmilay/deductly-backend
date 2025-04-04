@@ -30,10 +30,12 @@ class Receipt(models.Model):
     image = models.ForeignKey(Image, on_delete=models.CASCADE)
     total_expediture = models.DecimalField(max_digits=10, decimal_places=2)
     payment_method = models.CharField(max_length=255)
-    vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE)
+    vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE, null=True, blank=True)
     discount = models.DecimalField(max_digits=10, decimal_places=2)
     value_added_tax = models.DecimalField(max_digits=10, decimal_places=2)
-    document = models.ForeignKey(Document, on_delete=models.CASCADE)
+    document = models.ForeignKey(
+        Document, on_delete=models.CASCADE, null=True, blank=True
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

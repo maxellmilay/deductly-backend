@@ -11,9 +11,9 @@ class VendorSerializer(serializers.ModelSerializer):
 
 
 class ReceiptSerializer(serializers.ModelSerializer):
-    document = DocumentSerializer()
-    vendor = VendorSerializer()
-    image = ImageSerializer()
+    document = DocumentSerializer(read_only=True)
+    vendor = VendorSerializer(read_only=True)
+    image = ImageSerializer(read_only=True)
 
     class Meta:
         model = Receipt

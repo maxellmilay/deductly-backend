@@ -49,9 +49,9 @@ class ReceiptParser:
                 # Fix common OCR mistakes in numbers
                 for char, replacement in replacements.items():
                     # Only replace if it's in a number context
-                    line = re.sub(f"(?<=\d){char}(?=\d)", replacement, line)
-                    line = re.sub(f"(?<=\d){char}$", replacement, line)
-                    line = re.sub(f"^{char}(?=\d)", replacement, line)
+                    line = re.sub(rf"(?<=\d){char}(?=\d)", replacement, line)
+                    line = re.sub(rf"(?<=\d){char}$", replacement, line)
+                    line = re.sub(rf"^{char}(?=\d)", replacement, line)
                 lines.append(line)
 
         return "\n".join(lines)

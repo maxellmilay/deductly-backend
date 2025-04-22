@@ -7,4 +7,3 @@ class DocumentView(GenericView):
     queryset = Document.objects.all()
     serializer_class = DocumentSerializer
     # permission_classes = [IsAuthenticated]
-    cache_key_prefix = "document"

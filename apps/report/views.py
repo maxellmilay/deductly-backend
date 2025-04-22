@@ -7,4 +7,3 @@ class ReportView(GenericView):
     queryset = Report.objects.all()
     serializer_class = ReportSerializer
     # permission_classes = [IsAuthenticated]
-    cache_key_prefix = "report"

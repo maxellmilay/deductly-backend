@@ -218,9 +218,12 @@ class ReceiptParser:
         if vat_match:
             result["totals"]["vat"] = float(vat_match.group(1).replace(",", ""))
 
-        total_match = re.search(self.patterns["total"], text)
-        if total_match:
-            result["totals"]["total"] = float(total_match.group(1).replace(",", ""))
+        # Try each total pattern
+        for total_pattern in self.patterns["total"]:
+            total_match = re.search(total_pattern, text)
+            if total_match:
+                result["totals"]["total"] = float(total_match.group(1).replace(",", ""))
+                break
 
         # Calculate subtotal if not explicitly found
         if result["totals"].get("total") and result["totals"].get("vat"):

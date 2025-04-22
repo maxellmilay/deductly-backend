@@ -16,7 +16,11 @@ class ReceiptParser:
         self.patterns = {
             "tin": r"(?:TIN|TAX\s+ID|VAT\s+REG\.\s+TIN)[:\s]*(\d{3}[-\s]?\d{3}[-\s]?\d{3}[-\s]?\d{3,5})",
             "vat": r"(?:VAT|V\.A\.T\.)[:\s]*(?:Sales|Amount)?[:\s]*([\d,]+\.\d{2})",
-            "total": r"(?:TOTAL|GRAND\s+TOTAL|AMOUNT\s+DUE)[:\s]*([\d,]+\.\d{2})",
+            "total": [
+                r"(?:TOTAL|GRAND\s+TOTAL|AMOUNT\s+DUE)[:\s]*([\d,]+\.\d{2})",
+                r"([\d,]+\.\d{2})\s*(?:TOTAL|GRAND\s+TOTAL)",
+                r"([\d,]+\.\d{2})\s*$",  # Amount at end of line
+            ],
             "date": [
                 r"(\d{2}/\d{2}/\d{2,4})",
                 r"(\d{2}-\d{2}-\d{2,4})",
@@ -27,6 +31,11 @@ class ReceiptParser:
             "branch": r"(?:Branch|BRANCH)[:\s]*([A-Za-z0-9\s\.,]+)(?:\n|$)",
             "bir_accred": r"(?:BIR\s+Accred(?:itation)?|PTU\s+No\.)[:\s]*([A-Za-z0-9\-]+)",
             "serial_no": r"(?:Serial\s+No|Machine\s+No)[:\s]*([A-Za-z0-9\-]+)",
+            "item": [
+                r"([A-Za-z0-9\s\.]+)\s+([\d,]+\.\d{2})",  # Item name followed by price
+                r"([\d,]+\.\d{2})\s+([A-Za-z0-9\s\.]+)",  # Price followed by item name
+                r"([A-Za-z0-9\s\.]+)\s+x\s*(\d+)\s+@\s*([\d,]+\.\d{2})",  # Item with quantity and unit price
+            ],
         }
 
     def _clean_text(self, text: str) -> str:

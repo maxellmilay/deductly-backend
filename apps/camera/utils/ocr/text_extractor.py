@@ -49,15 +49,16 @@ class TextExtractor:
 
         # Configure Tesseract for receipt text
         custom_config = (
-            "--psm 6 "  # Assume uniform block of text
+            "--psm 4 "  # Assume a single column of text of variable sizes
             "--oem 3 "  # Use LSTM OCR Engine
-            "-c tessedit_char_blacklist=@#$%^&*()_+=[]{}|\\<>~"
+            "-c tessedit_char_whitelist=0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz.,:/- "  # Allow common receipt characters
             "-l eng+tag"  # Support both English and Tagalog
         )
 
         try:
             # Get text
             text = pytesseract.image_to_string(image, config=custom_config)
+            print(f"Extracted text: {text}")  # Debug log
 
             # Get confidence scores
             data = pytesseract.image_to_data(
@@ -82,6 +83,7 @@ class TextExtractor:
             }
 
         except Exception as e:
+            print(f"Tesseract error: {str(e)}")  # Debug log
             return {"text": "", "confidence": 0, "error": str(e)}
 
     def extract_with_openai_vision(self, image: np.ndarray) -> Dict[str, Any]:

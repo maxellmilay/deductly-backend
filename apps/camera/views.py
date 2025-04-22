@@ -5,11 +5,13 @@ from rest_framework import status
 from .serializers import ImageSerializer
 from .models import Image
 from rest_framework.permissions import IsAuthenticated
-from .utils.ocr import ImagePreprocessor, TextExtractor, ReceiptParser, ReceiptProcessor
+from .utils.ocr import ReceiptProcessor
 import base64
 import io
 from PIL import Image as PILImage
 import logging
+import numpy as np
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +44,6 @@ class ImageView(GenericView):
 
             try:
                 image_bytes = base64.b64decode(image_data)
-                image = PILImage.open(io.BytesIO(image_bytes))
                 logger.info("Successfully decoded base64 image")
             except Exception as e:
                 logger.error(f"Failed to decode base64 image: {str(e)}")
@@ -50,31 +51,25 @@ class ImageView(GenericView):
                     {"error": "Invalid image data"}, status=status.HTTP_400_BAD_REQUEST
                 )
 
-            # Process the receipt
-            logger.info("Starting OCR processing...")
-            preprocessor = ImagePreprocessor()
-            text_extractor = TextExtractor()
-            receipt_parser = ReceiptParser()
+            # Process the receipt using ReceiptProcessor
+            logger.info("Starting receipt processing...")
             processor = ReceiptProcessor()
 
-            # Preprocess image
-            processed_image = preprocessor.process(image)
-            logger.info("Image preprocessing complete")
+            # Process receipt using the combined method with debug info
+            result = processor.process_receipt(image_bytes, return_debug_info=True)
+            logger.info(
+                f"Receipt processing complete. Result: {json.dumps(result, indent=2)}"
+            )
 
-            # Extract text
-            extracted_text = text_extractor.extract(processed_image)
-            logger.info("Text extraction complete")
-
-            # Parse receipt
-            parsed_data = receipt_parser.parse(extracted_text)
-            logger.info("Receipt parsing complete")
-
-            # Process receipt data
-            result = processor.process(parsed_data)
-            logger.info("Receipt processing complete")
+            if not result.get("success"):
+                logger.error(f"Receipt processing failed: {result.get('error')}")
+                return Response(
+                    {"error": result.get("error", "Failed to process receipt")},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
 
             return Response(
-                {"success": True, "data": result}, status=status.HTTP_200_OK
+                {"success": True, "data": result.get("data")}, status=status.HTTP_200_OK
             )
 
         except Exception as e:

@@ -4,7 +4,7 @@ Text extraction utilities for receipt OCR using multiple methods.
 
 import os
 import pytesseract
-import openai
+from openai import OpenAI
 from typing import Optional, Dict, Any
 import numpy as np
 from dotenv import load_dotenv
@@ -13,8 +13,8 @@ import cv2
 # Load environment variables
 load_dotenv()
 
-# Configure OpenAI
-openai.api_key = os.getenv("OPEN_AI_API_KEY")
+# Configure OpenAI client
+client = OpenAI(api_key=os.getenv("OPEN_AI_API_KEY"))
 
 
 class TextExtractor:
@@ -115,6 +115,9 @@ class TextExtractor:
             # Convert image to bytes
             _, buffer = cv2.imencode(".png", image)
             image_bytes = buffer.tobytes()
+            import base64
+
+            image_b64 = base64.b64encode(image_bytes).decode("utf-8")
 
             # Enhanced prompt for Philippine receipts
             prompt = """
@@ -155,8 +158,8 @@ class TextExtractor:
             Include all numbers and special characters exactly as they appear.
             """
 
-            response = openai.ChatCompletion.create(
-                model="gpt-4-mini",
+            response = client.chat.completions.create(
+                model="gpt-4o",  # or gpt-4-vision-preview if you have access
                 messages=[
                     {
                         "role": "user",
@@ -165,7 +168,7 @@ class TextExtractor:
                             {
                                 "type": "image_url",
                                 "image_url": {
-                                    "url": f"data:image/png;base64,{image_bytes}"
+                                    "url": f"data:image/png;base64,{image_b64}"
                                 },
                             },
                         ],
@@ -177,7 +180,7 @@ class TextExtractor:
 
             return {
                 "text": response.choices[0].message.content,
-                "model": "gpt-4-mini",
+                "model": "gpt-4o",
                 "success": True,
             }
 

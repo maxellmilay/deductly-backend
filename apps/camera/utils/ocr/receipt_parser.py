@@ -6,15 +6,15 @@ import re
 from datetime import datetime
 from typing import Dict, List, Any, Optional
 import json
-import openai
+from openai import OpenAI
 from dotenv import load_dotenv
 import os
 
 # Load environment variables
 load_dotenv()
 
-# Configure OpenAI
-openai.api_key = os.getenv("OPEN_AI_API_KEY")
+# Configure OpenAI client
+client = OpenAI(api_key=os.getenv("OPEN_AI_API_KEY"))
 
 
 class ReceiptParser:
@@ -129,7 +129,7 @@ class ReceiptParser:
             {text}
             """
 
-            response = openai.ChatCompletion.create(
+            response = client.chat.completions.create(
                 model="gpt-4",
                 messages=[
                     {

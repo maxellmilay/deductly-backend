@@ -123,30 +123,79 @@ class ImagePreprocessor:
 
         return with_border
 
+    @staticmethod
+    def enhance_color_receipt(image: np.ndarray) -> np.ndarray:
+        """
+        Enhance a color receipt image for OCR, preserving color and gently improving contrast.
+        """
+        # Convert to LAB color space for better contrast enhancement
+        lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
+        l, a, b = cv2.split(lab)
+
+        # CLAHE on the L channel
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+        cl = clahe.apply(l)
+
+        # Merge back and convert to BGR
+        limg = cv2.merge((cl, a, b))
+        enhanced = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
+
+        # Optional: gentle denoising (skip if not needed)
+        # enhanced = cv2.fastNlMeansDenoisingColored(enhanced, None, 5, 5, 7, 21)
+
+        # Optional: add a small white border
+        border_size = 10
+        with_border = cv2.copyMakeBorder(
+            enhanced,
+            border_size,
+            border_size,
+            border_size,
+            border_size,
+            cv2.BORDER_CONSTANT,
+            value=[255, 255, 255],
+        )
+
+        return with_border
+
+    @staticmethod
+    def detect_skew_angle(image: np.ndarray) -> float:
+        """
+        Detect the skew angle of the image using Hough Line Transform. Returns angle in degrees.
+        """
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        edges = cv2.Canny(gray, 50, 150, apertureSize=3)
+        lines = cv2.HoughLinesP(
+            edges, 1, np.pi / 180, 100, minLineLength=100, maxLineGap=10
+        )
+        if lines is None:
+            return 0.0
+        angles = []
+        for line in lines:
+            x1, y1, x2, y2 = line[0]
+            if x2 - x1 != 0:
+                angle = np.arctan((y2 - y1) / (x2 - x1)) * 180 / np.pi
+                angles.append(angle)
+        if not angles:
+            return 0.0
+        median_angle = np.median(angles)
+        return median_angle
+
     def process_image(self, image: np.ndarray) -> Tuple[np.ndarray, bool]:
         """
-        Simplified processing pipeline that preserves more details.
+        Improved processing pipeline for already-cropped, color receipts:
+        - Only deskew if strong skew detected (>2 degrees)
+        - Use color-preserving enhancement
         """
         try:
-            # Detect edges
-            edges = self.detect_edges(image)
-
-            # Find receipt contour
-            contour = self.find_receipt_contour(edges)
-            if contour is None:
-                processed = image
+            # Detect skew angle
+            angle = self.detect_skew_angle(image)
+            if abs(angle) > 2:
+                deskewed = self.deskew(image)
             else:
-                # Create mask and extract receipt
-                mask = np.zeros_like(image)
-                cv2.drawContours(mask, [contour], -1, (255, 255, 255), -1)
-                processed = cv2.bitwise_and(image, mask)
+                deskewed = image
 
-            # Deskew if needed
-            deskewed = self.deskew(processed)
-
-            # Gentle enhancement
-            enhanced = self.enhance_for_ocr(deskewed)
-
+            # Use color-preserving enhancement
+            enhanced = self.enhance_color_receipt(deskewed)
             return enhanced, True
 
         except Exception as e:

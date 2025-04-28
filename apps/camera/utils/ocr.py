@@ -6,14 +6,14 @@ import io
 import csv
 import re
 from typing import Tuple, List, Dict, Optional
-import openai
+from openai import OpenAI
 from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
 
 # Configure OpenAI
-openai.api_key = os.getenv("OPEN_AI_API_KEY")
+client = OpenAI(api_key=os.getenv("OPEN_AI_API_KEY"))
 
 
 class ReceiptProcessor:
@@ -143,7 +143,7 @@ class ReceiptProcessor:
         image_bytes = buffer.tobytes()
 
         try:
-            response = openai.ChatCompletion.create(
+            response = client.chat.completions.create(
                 model="gpt-4-vision-preview",
                 messages=[
                     {

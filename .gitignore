@@ -4,3 +4,4 @@
 .pytest_cache/
 db.sqlite3
 key.json
+venv/

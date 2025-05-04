@@ -37,3 +37,4 @@ virtualenv==20.28.1
 langchain
 langchain-groq
 langchain-community
+openai>=1.0.0

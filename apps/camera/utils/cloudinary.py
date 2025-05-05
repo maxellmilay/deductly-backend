@@ -25,10 +25,12 @@ def upload_base64_image(base64_data, filename=None, folder="receipts"):
 
     Returns:
         dict: Dictionary containing:
-            - 'url': The public URL of the uploaded image
+            - 'success': Boolean indicating if upload was successful
+            - 'public_url': The public HTTP URL of the uploaded image
+            - 'secure_url': The secure HTTPS URL of the image
             - 'public_id': The public ID of the image in Cloudinary
-            - 'secure_url': HTTPS URL of the image
-            - Additional metadata returned by Cloudinary
+            - 'metadata': Additional metadata returned by Cloudinary
+            - 'error': Error message if upload failed
 
     Raises:
         Exception: If upload fails
@@ -59,8 +61,8 @@ def upload_base64_image(base64_data, filename=None, folder="receipts"):
 
         return {
             "success": True,
-            "url": result.get("url"),
-            "secure_url": result.get("secure_url"),
+            "public_url": result.get("url"),  # HTTP URL
+            "secure_url": result.get("secure_url"),  # HTTPS URL
             "public_id": result.get("public_id"),
             "metadata": result,
         }

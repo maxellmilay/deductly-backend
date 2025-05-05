@@ -12,6 +12,7 @@ from PIL import Image as PILImage
 import logging
 import numpy as np
 import json
+from .utils.cloudinary import upload_base64_image
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +68,19 @@ class ImageView(GenericView):
                     {"error": result.get("error", "Failed to process receipt")},
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 )
+
+            # Upload to Cloudinary
+            cloudinary_result = upload_base64_image(image_data)
+
+            # Add the Cloudinary URL to your response data
+            if cloudinary_result.get("success"):
+                result["data"]["image_url"] = cloudinary_result.get("public_url")
+
+                # Image.objects.create(
+                #     title=request.data.get("title"),
+                #     user=request.user,
+                #     image_url=result["data"]["image_url"],
+                # )
 
             return Response(
                 {"success": True, "data": result.get("data")}, status=status.HTTP_200_OK

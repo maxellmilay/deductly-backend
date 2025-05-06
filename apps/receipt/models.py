@@ -42,6 +42,9 @@ class Receipt(models.Model):
     def __str__(self):
         return self.title
 
+    def items(self):
+        return self.receiptitem_set.all()
+
 
 class ReceiptItem(models.Model):
     title = models.CharField(max_length=255)

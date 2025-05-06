@@ -10,15 +10,15 @@ class VendorSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
-class ReceiptSerializer(serializers.ModelSerializer):
+class ReceiptItemSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Receipt
+        model = ReceiptItem
         fields = "__all__"
 
 
-class ReceiptItemSerializer(serializers.ModelSerializer):
-    receipt = ReceiptSerializer()
+class ReceiptSerializer(serializers.ModelSerializer):
+    items = ReceiptItemSerializer(many=True)
 
     class Meta:
-        model = ReceiptItem
+        model = Receipt
         fields = "__all__"

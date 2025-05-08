@@ -32,7 +32,7 @@ class TextExtractor:
             r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",  # Windows 32-bit
             "/usr/bin/tesseract",  # Linux
             "/usr/local/bin/tesseract",  # macOS
-            "/opt/homebrew/bin/tesseract",
+            "/opt/homebrew/bin/tesseract",  # Homebrew on macOS
         ]
 
         for path in possible_paths:

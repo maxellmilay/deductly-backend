@@ -13,6 +13,9 @@ import logging
 import numpy as np
 import json
 from .utils.cloudinary import upload_base64_image
+from django.core.cache import cache
+from django.http import StreamingHttpResponse
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -36,58 +39,81 @@ class ImageView(GenericView):
                     {"error": "No image provided"}, status=status.HTTP_400_BAD_REQUEST
                 )
 
-            logger.info("Processing image data...")
-            # Convert base64 to image
-            if isinstance(image_data, str) and image_data.startswith("data:image"):
-                # Remove the data URL prefix if present
-                image_data = image_data.split("base64,")[1]
-                logger.info("Removed data URL prefix")
+            # Check for existing processing
+            cache_key = f"receipt_processing_{request.user.id if hasattr(request, 'user') else 'anonymous'}"
+            if cache.get(cache_key):
+                return Response(
+                    {"error": "Processing already in progress"},
+                    status=status.HTTP_429_TOO_MANY_REQUESTS,
+                )
+
+            # Set processing flag with 30-second timeout
+            cache.set(cache_key, True, 30)
 
             try:
-                image_bytes = base64.b64decode(image_data)
-                logger.info("Successfully decoded base64 image")
-            except Exception as e:
-                logger.error(f"Failed to decode base64 image: {str(e)}")
-                return Response(
-                    {"error": "Invalid image data"}, status=status.HTTP_400_BAD_REQUEST
+                logger.info("Processing image data...")
+                # Convert base64 to image
+                if isinstance(image_data, str) and image_data.startswith("data:image"):
+                    # Remove the data URL prefix if present
+                    image_data = image_data.split("base64,")[1]
+                    logger.info("Removed data URL prefix")
+
+                try:
+                    image_bytes = base64.b64decode(image_data)
+                    logger.info("Successfully decoded base64 image")
+                except Exception as e:
+                    logger.error(f"Failed to decode base64 image: {str(e)}")
+                    return Response(
+                        {"error": "Invalid image data"},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+                # Process the receipt using ReceiptProcessor
+                logger.info("Starting receipt processing...")
+                processor = ReceiptProcessor()
+
+                # Process receipt using the combined method with debug info
+                result = processor.process_receipt(
+                    image_bytes,
+                    use_all_ocr_methods=False,  # Changed to False for faster processing
+                    return_debug_info=True,
+                )
+                logger.info(
+                    f"Receipt processing complete. Result: {json.dumps(result, indent=2)}"
                 )
 
-            # Process the receipt using ReceiptProcessor
-            logger.info("Starting receipt processing...")
-            processor = ReceiptProcessor()
+                if not result.get("success"):
+                    logger.error(f"Receipt processing failed: {result.get('error')}")
+                    return Response(
+                        {"error": result.get("error", "Failed to process receipt")},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    )
 
-            # Process receipt using the combined method with debug info
-            result = processor.process_receipt(image_bytes, return_debug_info=True)
-            logger.info(
-                f"Receipt processing complete. Result: {json.dumps(result, indent=2)}"
-            )
+                # Upload to Cloudinary
+                cloudinary_result = upload_base64_image(image_data)
 
-            if not result.get("success"):
-                logger.error(f"Receipt processing failed: {result.get('error')}")
+                # Add the Cloudinary URL to your response data
+                if cloudinary_result.get("success"):
+                    result["data"]["image_url"] = cloudinary_result.get("public_url")
+
                 return Response(
-                    {"error": result.get("error", "Failed to process receipt")},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    {"success": True, "data": result.get("data")},
+                    status=status.HTTP_200_OK,
                 )
 
-            # Upload to Cloudinary
-            cloudinary_result = upload_base64_image(image_data)
-
-            # Add the Cloudinary URL to your response data
-            if cloudinary_result.get("success"):
-                result["data"]["image_url"] = cloudinary_result.get("public_url")
-
-                # Image.objects.create(
-                #     title=request.data.get("title"),
-                #     user=request.user,
-                #     image_url=result["data"]["image_url"],
-                # )
-
-            return Response(
-                {"success": True, "data": result.get("data")}, status=status.HTTP_200_OK
-            )
+            finally:
+                # Clear processing flag
+                cache.delete(cache_key)
 
         except Exception as e:
             logger.error(f"Error processing receipt: {str(e)}")
             return Response(
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+    @action(detail=False, methods=["GET"])
+    def process_receipt_status(self, request):
+        """Check the status of receipt processing."""
+        cache_key = f"receipt_processing_{request.user.id if hasattr(request, 'user') else 'anonymous'}"
+        is_processing = cache.get(cache_key)
+        return Response({"is_processing": bool(is_processing)})

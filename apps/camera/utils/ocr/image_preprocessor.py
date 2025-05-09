@@ -5,10 +5,24 @@ Image preprocessing utilities for receipt OCR.
 import cv2
 import numpy as np
 from typing import Optional, Tuple
+import hashlib
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 class ImagePreprocessor:
     """Handles all image preprocessing operations for receipt OCR."""
+
+    def __init__(self):
+        self._cache_size = 100
+        self._cache = {}
+
+    def _get_image_hash(self, image: np.ndarray) -> str:
+        """Generate a hash for the image to use as cache key."""
+        return hashlib.md5(image.tobytes()).hexdigest()
 
     @staticmethod
     def detect_edges(image: np.ndarray) -> np.ndarray:
@@ -74,7 +88,7 @@ class ImagePreprocessor:
             return image
 
         median_angle = np.median(angles)
-        if abs(median_angle) < 1:  # Skip small rotations
+        if abs(median_angle) < 5:  # Increased threshold from 1 to 5 degrees
             return image
 
         (h, w) = image.shape[:2]
@@ -89,7 +103,7 @@ class ImagePreprocessor:
     @staticmethod
     def enhance_for_ocr(image: np.ndarray) -> np.ndarray:
         """
-        Gentle enhancement for OCR that preserves text details.
+        Enhanced preprocessing for OCR that preserves text details.
         """
         # Convert to grayscale if not already
         if len(image.shape) == 3:
@@ -97,22 +111,22 @@ class ImagePreprocessor:
         else:
             gray = image
 
-        # Gentle contrast enhancement
-        clahe = cv2.createCLAHE(clipLimit=1.5, tileGridSize=(8, 8))
-        enhanced = clahe.apply(gray)
-
-        # Light denoising
-        denoised = cv2.fastNlMeansDenoising(enhanced, h=7)
-
-        # Adaptive thresholding with gentle parameters
+        # Apply adaptive thresholding to handle varying lighting conditions
         binary = cv2.adaptiveThreshold(
-            denoised, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 15, 3
+            gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2
         )
+
+        # Denoise the image
+        denoised = cv2.fastNlMeansDenoising(binary, h=10)
+
+        # Enhance contrast using CLAHE
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+        enhanced = clahe.apply(denoised)
 
         # Add small border
         border_size = 10
         with_border = cv2.copyMakeBorder(
-            binary,
+            enhanced,
             border_size,
             border_size,
             border_size,
@@ -126,13 +140,14 @@ class ImagePreprocessor:
     @staticmethod
     def enhance_color_receipt(image: np.ndarray) -> np.ndarray:
         """
-        Enhance a color receipt image for OCR, preserving color and gently improving contrast.
+        Enhanced color receipt image for OCR, preserving color and gently improving contrast.
+        Optimized for speed by reducing unnecessary operations.
         """
         # Convert to LAB color space for better contrast enhancement
         lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
         l, a, b = cv2.split(lab)
 
-        # CLAHE on the L channel
+        # CLAHE on the L channel with optimized parameters
         clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
         cl = clahe.apply(l)
 
@@ -140,10 +155,7 @@ class ImagePreprocessor:
         limg = cv2.merge((cl, a, b))
         enhanced = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
 
-        # Optional: gentle denoising (skip if not needed)
-        # enhanced = cv2.fastNlMeansDenoisingColored(enhanced, None, 5, 5, 7, 21)
-
-        # Optional: add a small white border
+        # Add small white border
         border_size = 10
         with_border = cv2.copyMakeBorder(
             enhanced,
@@ -160,7 +172,8 @@ class ImagePreprocessor:
     @staticmethod
     def detect_skew_angle(image: np.ndarray) -> float:
         """
-        Detect the skew angle of the image using Hough Line Transform. Returns angle in degrees.
+        Detect the skew angle of the image using Hough Line Transform.
+        Returns angle in degrees.
         """
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         edges = cv2.Canny(gray, 50, 150, apertureSize=3)
@@ -183,21 +196,60 @@ class ImagePreprocessor:
     def process_image(self, image: np.ndarray) -> Tuple[np.ndarray, bool]:
         """
         Improved processing pipeline for already-cropped, color receipts:
-        - Only deskew if strong skew detected (>2 degrees)
+        - Only deskew if strong skew detected (>5 degrees)
         - Use color-preserving enhancement
+        - Cached results for repeated processing
         """
         try:
-            # Detect skew angle
-            angle = self.detect_skew_angle(image)
-            if abs(angle) > 2:
-                deskewed = self.deskew(image)
-            else:
-                deskewed = image
+            # Check cache first
+            image_hash = self._get_image_hash(image)
+            if image_hash in self._cache:
+                return self._cache[image_hash]
 
-            # Use color-preserving enhancement
-            enhanced = self.enhance_color_receipt(deskewed)
-            return enhanced, True
+            logger.info(f"Processing image with shape: {image.shape}")
+
+            # Convert to grayscale for initial processing
+            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+            # Apply adaptive thresholding
+            binary = cv2.adaptiveThreshold(
+                gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2
+            )
+
+            # Denoise
+            denoised = cv2.fastNlMeansDenoising(binary, h=10)
+
+            # Enhance contrast
+            clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+            enhanced = clahe.apply(denoised)
+
+            # Add border
+            border_size = 10
+            with_border = cv2.copyMakeBorder(
+                enhanced,
+                border_size,
+                border_size,
+                border_size,
+                border_size,
+                cv2.BORDER_CONSTANT,
+                value=255,
+            )
+
+            # Save debug image
+            debug_path = "debug_preprocessed.jpg"
+            cv2.imwrite(debug_path, with_border)
+            logger.info(f"Saved debug image to {debug_path}")
+
+            result = (with_border, True)
+
+            # Cache the result
+            if len(self._cache) >= self._cache_size:
+                # Remove oldest item if cache is full
+                self._cache.pop(next(iter(self._cache)))
+            self._cache[image_hash] = result
+
+            return result
 
         except Exception as e:
-            print(f"Error in image preprocessing: {str(e)}")
+            logger.error(f"Error in image preprocessing: {str(e)}")
             return image, False

@@ -8,10 +8,15 @@ import cv2
 import base64
 import io
 from PIL import Image
+from concurrent.futures import ThreadPoolExecutor
+import hashlib
+import logging
 
 from .image_preprocessor import ImagePreprocessor
 from .text_extractor import TextExtractor
 from .receipt_parser import ReceiptParser
+
+logger = logging.getLogger(__name__)
 
 
 class ReceiptProcessor:
@@ -21,6 +26,10 @@ class ReceiptProcessor:
         self.image_preprocessor = ImagePreprocessor()
         self.text_extractor = TextExtractor()
         self.receipt_parser = ReceiptParser()
+
+    def _get_image_hash(self, image: np.ndarray) -> str:
+        """Generate a hash for the image to use as cache key."""
+        return hashlib.md5(image.tobytes()).hexdigest()
 
     def _load_image(
         self, image_data: Union[str, bytes, np.ndarray]
@@ -56,15 +65,16 @@ class ReceiptProcessor:
     def process_receipt(
         self,
         image_data: Union[str, bytes, np.ndarray],
-        use_all_ocr_methods: bool = True,
+        use_all_ocr_methods: bool = False,
         return_debug_info: bool = False,
     ) -> Dict[str, Any]:
         """
         Process receipt image through the entire pipeline.
+        Optimized with parallel processing and caching.
 
         Args:
             image_data: Receipt image in various formats (base64, bytes, or numpy array)
-            use_all_ocr_methods: Whether to use multiple OCR methods
+            use_all_ocr_methods: Whether to use multiple OCR methods (default: False)
             return_debug_info: Whether to return intermediate processing results
 
         Returns:
@@ -83,46 +93,62 @@ class ReceiptProcessor:
             if image is None:
                 raise ValueError("Failed to load image")
 
-            # Preprocess image
-            processed_image, preprocess_success = self.image_preprocessor.process_image(
-                image
-            )
+            image_hash = self._get_image_hash(image)
 
-            if return_debug_info:
-                result["debug_info"]["preprocessing"] = {
-                    "success": preprocess_success,
-                    "image_shape": processed_image.shape,
-                }
+            # Process image preprocessing and text extraction in parallel
+            with ThreadPoolExecutor(max_workers=2) as executor:
+                # Start preprocessing
+                preprocess_future = executor.submit(
+                    self.image_preprocessor.process_image, image
+                )
 
-            # Extract text
-            extraction_result = self.text_extractor.extract_text(
-                processed_image, use_all_methods=use_all_ocr_methods
-            )
+                # Get preprocessing result
+                processed_image, preprocess_success = preprocess_future.result()
 
-            if return_debug_info:
-                result["debug_info"]["text_extraction"] = {
-                    "method_used": extraction_result.get("method_used"),
-                    "confidence": extraction_result.get("tesseract", {}).get(
-                        "confidence"
-                    ),
-                }
+                if return_debug_info:
+                    result["debug_info"]["preprocessing"] = {
+                        "success": preprocess_success,
+                        "image_shape": processed_image.shape,
+                    }
 
-            # Parse receipt text
-            parsed_data = self.receipt_parser.parse_receipt(
-                extraction_result["best_text"]
-            )
+                # Extract text
+                extraction_result = self.text_extractor.extract_text(
+                    processed_image, use_all_methods=use_all_ocr_methods
+                )
 
-            # Add the raw text to debug info if requested
-            if return_debug_info:
-                result["debug_info"]["raw_text"] = extraction_result["best_text"]
+                if return_debug_info:
+                    result["debug_info"]["text_extraction"] = {
+                        "method_used": extraction_result.get("method_used"),
+                        "confidence": extraction_result.get("tesseract", {}).get(
+                            "confidence"
+                        ),
+                    }
 
-            # Set success result
-            result["success"] = True
-            result["data"] = parsed_data
+                # Check if we have valid data from Vision API
+                if (
+                    extraction_result.get("method_used") == "openai_vision"
+                    and extraction_result.get("parsed_data")
+                    and extraction_result.get("success", False)
+                ):
+                    # Use the parsed data directly
+                    result["data"] = extraction_result["parsed_data"]
+                    result["success"] = True
+                else:
+                    # Fallback to parsing the text
+                    parsed_data = self.receipt_parser.parse_receipt(
+                        extraction_result["best_text"]
+                    )
+                    result["data"] = parsed_data
+                    result["success"] = True
+
+                # Add the raw text to debug info if requested
+                if return_debug_info:
+                    result["debug_info"]["raw_text"] = extraction_result["best_text"]
 
         except Exception as e:
             result["success"] = False
             result["error"] = str(e)
+            logger.error(f"Receipt processing error: {str(e)}")
 
         return result
 

@@ -56,7 +56,6 @@ class ReceiptProcessor:
     def process_receipt(
         self,
         image_data: Union[str, bytes, np.ndarray],
-        use_all_ocr_methods: bool = True,
         return_debug_info: bool = False,
     ) -> Dict[str, Any]:
         """
@@ -64,7 +63,6 @@ class ReceiptProcessor:
 
         Args:
             image_data: Receipt image in various formats (base64, bytes, or numpy array)
-            use_all_ocr_methods: Whether to use multiple OCR methods
             return_debug_info: Whether to return intermediate processing results
 
         Returns:
@@ -95,16 +93,12 @@ class ReceiptProcessor:
                 }
 
             # Extract text
-            extraction_result = self.text_extractor.extract_text(
-                processed_image, use_all_methods=use_all_ocr_methods
-            )
+            extraction_result = self.text_extractor.extract_text(processed_image)
 
             if return_debug_info:
                 result["debug_info"]["text_extraction"] = {
                     "method_used": extraction_result.get("method_used"),
-                    "confidence": extraction_result.get("tesseract", {}).get(
-                        "confidence"
-                    ),
+                    "success": extraction_result.get("success", False),
                 }
 
             # Parse receipt text

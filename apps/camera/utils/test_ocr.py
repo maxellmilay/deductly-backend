@@ -1,10 +1,15 @@
 import cv2
 import numpy as np
 import os
+import logging
 from ocr.receipt_processor import ReceiptProcessor
 from ocr.image_preprocessor import ImagePreprocessor
 from ocr.text_extractor import TextExtractor
 from ocr.receipt_parser import ReceiptParser
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 def test_ocr_process(image_path):
@@ -20,13 +25,15 @@ def test_ocr_process(image_path):
 
     # Load image
     if not os.path.exists(image_path):
-        print(f"Error: Image file not found at {image_path}")
+        logger.error(f"Error: Image file not found at {image_path}")
         return
 
     image = cv2.imread(image_path)
     if image is None:
-        print("Error: Could not load image")
+        logger.error("Error: Could not load image")
         return
+
+    logger.info(f"Successfully loaded image: {image.shape}")
 
     print("\n=== Starting OCR Process ===")
 
@@ -34,7 +41,9 @@ def test_ocr_process(image_path):
     print("\n1. Preprocessing image...")
     processed_image, success = preprocessor.process_image(image)
     if not success:
-        print("Warning: Image preprocessing may have issues")
+        logger.warning("Warning: Image preprocessing may have issues")
+    else:
+        logger.info("Image preprocessing completed successfully")
 
     # Save processed image to test_images directory
     processed_path = os.path.join("test_images", "processed_receipt.jpg")
@@ -43,9 +52,13 @@ def test_ocr_process(image_path):
 
     # 2. Extract text
     print("\n2. Extracting text...")
-    extraction_result = text_extractor.extract_text(
-        processed_image, use_all_methods=True
-    )
+    extraction_result = text_extractor.extract_text(processed_image)
+
+    if not extraction_result.get("success", False):
+        logger.error(
+            f"Text extraction failed: {extraction_result.get('error', 'Unknown error')}"
+        )
+        return
 
     print("\nExtracted Text:")
     print("-" * 50)
@@ -67,9 +80,7 @@ def test_ocr_process(image_path):
 
     # 4. Full pipeline test
     print("\n4. Testing full pipeline...")
-    full_result = processor.process_receipt(
-        image_data=image, use_all_ocr_methods=True, return_debug_info=True
-    )
+    full_result = processor.process_receipt(image_data=image, return_debug_info=True)
 
     print("\nFull Pipeline Result:")
     print("-" * 50)

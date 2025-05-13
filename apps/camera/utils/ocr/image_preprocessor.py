@@ -140,10 +140,10 @@ class ImagePreprocessor:
         limg = cv2.merge((cl, a, b))
         enhanced = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
 
-        # Optional: gentle denoising (skip if not needed)
-        # enhanced = cv2.fastNlMeansDenoisingColored(enhanced, None, 5, 5, 7, 21)
+        # Gentle denoising
+        enhanced = cv2.fastNlMeansDenoisingColored(enhanced, None, 5, 5, 7, 21)
 
-        # Optional: add a small white border
+        # Add a small white border
         border_size = 10
         with_border = cv2.copyMakeBorder(
             enhanced,
@@ -180,24 +180,13 @@ class ImagePreprocessor:
         median_angle = np.median(angles)
         return median_angle
 
-    def process_image(self, image: np.ndarray) -> Tuple[np.ndarray, bool]:
+    def process_image(self, image: np.ndarray) -> tuple:
         """
-        Improved processing pipeline for already-cropped, color receipts:
-        - Only deskew if strong skew detected (>2 degrees)
-        - Use color-preserving enhancement
+        Only apply color/contrast enhancement for AI OCR. No cropping or deskewing.
         """
         try:
-            # Detect skew angle
-            angle = self.detect_skew_angle(image)
-            if abs(angle) > 2:
-                deskewed = self.deskew(image)
-            else:
-                deskewed = image
-
-            # Use color-preserving enhancement
-            enhanced = self.enhance_color_receipt(deskewed)
+            enhanced = self.enhance_color_receipt(image)
             return enhanced, True
-
         except Exception as e:
             print(f"Error in image preprocessing: {str(e)}")
             return image, False

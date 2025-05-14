@@ -10,6 +10,8 @@ from dotenv import load_dotenv
 import cv2
 import base64
 import logging
+import json
+import re
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -29,9 +31,9 @@ class TextExtractor:
         pass
 
     def extract_with_openai_vision(self, image: np.ndarray) -> Dict[str, Any]:
-        """Extract text using OpenAI Vision API with optimized parameters."""
+        """Extract text and parse receipt in a single API call."""
         try:
-            # Optimize image size for API
+            # Optimize image size for API - do this only once
             max_dimension = 1024
             height, width = image.shape[:2]
 
@@ -50,20 +52,58 @@ class TextExtractor:
             image_b64 = base64.b64encode(image_bytes).decode("utf-8")
             logger.info("Image encoded successfully")
 
-            # Optimized prompt for faster processing
-            prompt = """
-            Extract all text from this Philippine receipt. Focus on:
-            1. Store name, location, TIN
-            2. Date, receipt number
-            3. Items, quantities, prices
-            4. Subtotal, VAT, total amount
-            5. Payment method
-            Format clearly, preserve layout, include all numbers and special characters.
+            # Combined prompt for extraction and parsing
+            prompt = """Extract and structure the following receipt information in JSON format. 
+            This is a Philippine receipt, so look for:
+            - Store name and TIN (Tax Identification Number)
+            - Date and time
+            - Items with quantities and prices
+            - VAT (12%)
+            - Service charge
+            - Discounts
+            - Payment method (Cash, Card, GCash, etc.)
+            - Total amount
+            
+            Format the response as a JSON object with these fields:
+            {
+                "store_info": {
+                    "name": "store name",
+                    "tin": "TIN number if available",
+                    "branch": "branch name if available"
+                },
+                "transaction_info": {
+                    "date": "date in YYYY-MM-DD format",
+                    "time": "time in HH:MM:SS format",
+                    "payment_method": "payment method"
+                },
+                "items": [
+                    {
+                        "name": "item name",
+                        "quantity": "quantity",
+                        "price": "price"
+                    }
+                ],
+                "totals": {
+                    "subtotal": "subtotal",
+                    "vat": "VAT amount",
+                    "service_charge": "service charge",
+                    "discount": "discount amount",
+                    "total": "total amount"
+                },
+                "metadata": {
+                    "currency": "PHP",
+                    "vat_rate": 0.12,
+                    "bir_accreditation": "BIR accreditation number if available",
+                    "serial_number": "serial number if available"
+                }
+            }
+
+            Extract all text from this receipt and structure it according to the above format.
             """
 
             logger.info("Sending request to OpenAI Vision API...")
             response = client.chat.completions.create(
-                model="gpt-4.1-nano",
+                model="gpt-4.1-nano",  # Using the latest vision model
                 messages=[
                     {
                         "role": "user",
@@ -78,40 +118,31 @@ class TextExtractor:
                         ],
                     }
                 ],
-                max_tokens=500,  # Reduced token limit for faster response
-                temperature=0.1,  # Lower temperature for more focused output
+                max_tokens=1000,
+                temperature=0.1,
             )
 
-            extracted_text = response.choices[0].message.content
-            logger.info(
-                f"Successfully extracted text: {len(extracted_text)} characters"
-            )
-
-            return {
-                "text": extracted_text,
-                "model": "gpt-4.1-nano",
-                "success": True,
-            }
+            # Parse the response
+            result = response.choices[0].message.content
+            try:
+                # Try to find JSON in the response
+                json_str = re.search(r"\{.*\}", result, re.DOTALL)
+                if json_str:
+                    parsed_data = json.loads(json_str.group())
+                    logger.info("Successfully extracted and parsed receipt data")
+                    return {"success": True, "data": parsed_data, "raw_text": result}
+                else:
+                    logger.error("No JSON found in response")
+                    return {"success": False, "error": "No JSON found in response"}
+            except json.JSONDecodeError as e:
+                logger.error(f"JSON parsing error: {str(e)}")
+                return {"success": False, "error": f"JSON parsing error: {str(e)}"}
 
         except Exception as e:
             logger.error(f"Error in text extraction: {str(e)}")
-            return {"text": "", "error": str(e), "success": False}
+            return {"success": False, "error": str(e)}
 
     def extract_text(self, image: np.ndarray) -> Dict[str, Any]:
         """Main method to extract text from image."""
         logger.info("Starting text extraction process...")
-        result = self.extract_with_openai_vision(image)
-
-        if not result["success"]:
-            logger.error(
-                f"Text extraction failed: {result.get('error', 'Unknown error')}"
-            )
-        else:
-            logger.info("Text extraction completed successfully")
-
-        return {
-            "best_text": result.get("text", ""),
-            "method_used": "openai_vision",
-            "success": result.get("success", False),
-            "error": result.get("error", None),
-        }
+        return self.extract_with_openai_vision(image)

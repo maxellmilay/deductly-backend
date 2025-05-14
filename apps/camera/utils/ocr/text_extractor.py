@@ -29,13 +29,11 @@ class TextExtractor:
         pass
 
     def extract_with_openai_vision(self, image: np.ndarray) -> Dict[str, Any]:
-        """Optimized text extraction using OpenAI Vision API with Philippine context."""
+        """Extract text using OpenAI Vision API with optimized parameters."""
         try:
-            # Optimize image size before encoding to reduce API payload
-            max_dimension = 1024  # Maximum dimension for the image
+            # Optimize image size for API
+            max_dimension = 1024
             height, width = image.shape[:2]
-
-            logger.info(f"Original image size: {width}x{height}")
 
             if max(height, width) > max_dimension:
                 scale = max_dimension / max(height, width)
@@ -46,14 +44,13 @@ class TextExtractor:
                 )
                 logger.info(f"Resized image to: {new_width}x{new_height}")
 
-            # Convert image to bytes with optimized compression
+            # Optimize image encoding
             _, buffer = cv2.imencode(".jpg", image, [cv2.IMWRITE_JPEG_QUALITY, 85])
             image_bytes = buffer.tobytes()
             image_b64 = base64.b64encode(image_bytes).decode("utf-8")
-
             logger.info("Image encoded successfully")
 
-            # Streamlined prompt for faster processing
+            # Optimized prompt for faster processing
             prompt = """
             Extract all text from this Philippine receipt. Focus on:
             1. Store name, location, TIN
@@ -81,8 +78,8 @@ class TextExtractor:
                         ],
                     }
                 ],
-                max_tokens=1000,  # Reduced token limit for faster response
-                temperature=0.1,
+                max_tokens=500,  # Reduced token limit for faster response
+                temperature=0.1,  # Lower temperature for more focused output
             )
 
             extracted_text = response.choices[0].message.content
@@ -101,9 +98,7 @@ class TextExtractor:
             return {"text": "", "error": str(e), "success": False}
 
     def extract_text(self, image: np.ndarray) -> Dict[str, Any]:
-        """
-        Extract text using OpenAI Vision API.
-        """
+        """Main method to extract text from image."""
         logger.info("Starting text extraction process...")
         result = self.extract_with_openai_vision(image)
 

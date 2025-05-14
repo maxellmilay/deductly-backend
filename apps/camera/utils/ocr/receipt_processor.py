@@ -8,10 +8,12 @@ import cv2
 import base64
 import io
 from PIL import Image
+import logging
 
 from .image_preprocessor import ImagePreprocessor
 from .text_extractor import TextExtractor
-from .receipt_parser import ReceiptParser
+
+logger = logging.getLogger(__name__)
 
 
 class ReceiptProcessor:
@@ -20,7 +22,6 @@ class ReceiptProcessor:
     def __init__(self):
         self.image_preprocessor = ImagePreprocessor()
         self.text_extractor = TextExtractor()
-        self.receipt_parser = ReceiptParser()
 
     def _load_image(
         self, image_data: Union[str, bytes, np.ndarray]
@@ -50,13 +51,12 @@ class ReceiptProcessor:
                 raise ValueError("Unsupported image format")
 
         except Exception as e:
-            print(f"Error loading image: {str(e)}")
+            logger.error(f"Error loading image: {str(e)}")
             return None
 
     def process_receipt(
         self,
         image_data: Union[str, bytes, np.ndarray],
-        use_all_ocr_methods: bool = True,
         return_debug_info: bool = False,
     ) -> Dict[str, Any]:
         """
@@ -64,7 +64,6 @@ class ReceiptProcessor:
 
         Args:
             image_data: Receipt image in various formats (base64, bytes, or numpy array)
-            use_all_ocr_methods: Whether to use multiple OCR methods
             return_debug_info: Whether to return intermediate processing results
 
         Returns:
@@ -94,31 +93,20 @@ class ReceiptProcessor:
                     "image_shape": processed_image.shape,
                 }
 
-            # Extract text
-            extraction_result = self.text_extractor.extract_text(
-                processed_image, use_all_methods=use_all_ocr_methods
-            )
+            # Extract text and parse receipt in one step
+            extraction_result = self.text_extractor.extract_text(processed_image)
 
-            if return_debug_info:
-                result["debug_info"]["text_extraction"] = {
-                    "method_used": extraction_result.get("method_used"),
-                    "confidence": extraction_result.get("tesseract", {}).get(
-                        "confidence"
-                    ),
-                }
-
-            # Parse receipt text
-            parsed_data = self.receipt_parser.parse_receipt(
-                extraction_result["best_text"]
-            )
-
-            # Add the raw text to debug info if requested
-            if return_debug_info:
-                result["debug_info"]["raw_text"] = extraction_result["best_text"]
+            if not extraction_result["success"]:
+                raise ValueError(
+                    f"Text extraction failed: {extraction_result.get('error')}"
+                )
 
             # Set success result
             result["success"] = True
-            result["data"] = parsed_data
+            result["data"] = extraction_result["data"]
+
+            if return_debug_info:
+                result["debug_info"]["raw_text"] = extraction_result.get("raw_text", "")
 
         except Exception as e:
             result["success"] = False

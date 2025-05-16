@@ -14,9 +14,9 @@ import threading
 from django.views.decorators.gzip import gzip_page
 from django.utils.decorators import method_decorator
 import cv2
-import base64
 import io
 from PIL import Image as PILImage
+import cloudinary.uploader
 
 logger = logging.getLogger(__name__)
 
@@ -30,13 +30,16 @@ class ImageView(GenericView):
     def _upload_to_cloudinary_async(self, image_file, result):
         """Asynchronously upload image to Cloudinary and update result."""
         try:
-            # Convert to base64 for Cloudinary
+            # Convert to bytes for direct upload
             _, buffer = cv2.imencode(".jpg", image_file)
-            image_b64 = base64.b64encode(buffer).decode("utf-8")
 
-            cloudinary_result = upload_base64_image(image_b64)
-            if cloudinary_result.get("success"):
-                result["data"]["image_url"] = cloudinary_result.get("public_url")
+            # Direct upload to Cloudinary
+            cloudinary_result = cloudinary.uploader.upload(
+                buffer.tobytes(), resource_type="image", format="jpg", folder="receipts"
+            )
+
+            if cloudinary_result:
+                result["data"]["image_url"] = cloudinary_result.get("secure_url")
                 logger.info("Successfully uploaded image to Cloudinary asynchronously")
         except Exception as e:
             logger.error(f"Error in async Cloudinary upload: {str(e)}")

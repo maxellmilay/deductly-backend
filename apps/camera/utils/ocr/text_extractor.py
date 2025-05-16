@@ -8,12 +8,12 @@ from typing import Dict, Any
 import numpy as np
 from dotenv import load_dotenv
 import cv2
-import base64
 import logging
 import json
 import re
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
+import cloudinary.uploader
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -53,15 +53,21 @@ class TextExtractor:
 
             # Optimize image encoding with lower quality
             _, buffer = cv2.imencode(".jpg", image, [cv2.IMWRITE_JPEG_QUALITY, 70])
-            image_bytes = buffer.tobytes()
-            image_b64 = base64.b64encode(image_bytes).decode("utf-8")
 
-            return image_b64, image.shape
+            # Upload to Cloudinary and get URL
+            result = cloudinary.uploader.upload(
+                buffer.tobytes(),
+                resource_type="image",
+                format="jpg",
+                folder="receipts/temp",
+            )
+
+            return result["secure_url"], image.shape
         except Exception as e:
             logger.error(f"Error optimizing image: {str(e)}")
             return None, None
 
-    def _make_api_call(self, image_b64: str) -> Dict[str, Any]:
+    def _make_api_call(self, image_url: str) -> Dict[str, Any]:
         """Make API call with optimized parameters."""
         try:
             # Optimized prompt focusing on tax deduction essentials
@@ -118,9 +124,7 @@ class TextExtractor:
                             {"type": "text", "text": prompt},
                             {
                                 "type": "image_url",
-                                "image_url": {
-                                    "url": f"data:image/jpeg;base64,{image_b64}"
-                                },
+                                "image_url": {"url": image_url},
                             },
                         ],
                     }
@@ -158,13 +162,13 @@ class TextExtractor:
                 logger.info("Using cached result")
                 return self._image_cache[image_hash]
 
-            # Optimize image
-            image_b64, _ = self._optimize_image(image)
-            if not image_b64:
+            # Optimize image and get URL
+            image_url, _ = self._optimize_image(image)
+            if not image_url:
                 return {"success": False, "error": "Failed to optimize image"}
 
             # Make API call
-            result = self._make_api_call(image_b64)
+            result = self._make_api_call(image_url)
 
             # Cache successful results
             if result["success"]:

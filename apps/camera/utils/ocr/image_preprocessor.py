@@ -6,6 +6,7 @@ import cv2
 import numpy as np
 from typing import Optional, Tuple
 import logging
+from functools import lru_cache
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -16,22 +17,26 @@ class ImagePreprocessor:
     """Handles image enhancement for OCR."""
 
     @staticmethod
+    @lru_cache(maxsize=1)
+    def _get_clahe():
+        """Cache CLAHE object to avoid recreation."""
+        return cv2.createCLAHE(clipLimit=1.5, tileGridSize=(4, 4))
+
+    @staticmethod
     def enhance_for_ocr(image: np.ndarray) -> np.ndarray:
         """Optimized enhancement for OCR that preserves text details."""
         try:
             # Convert to grayscale - using faster method
             gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
-            # Faster contrast enhancement with smaller grid
-            clahe = cv2.createCLAHE(clipLimit=1.5, tileGridSize=(4, 4))
+            # Use cached CLAHE
+            clahe = ImagePreprocessor._get_clahe()
             enhanced = clahe.apply(gray)
 
-            # Faster denoising with optimized parameters
-            denoised = cv2.fastNlMeansDenoising(enhanced, None, 5, 7, 21)
-
+            # Skip denoising for speed - OCR can handle some noise
             # Faster thresholding with optimized block size
             binary = cv2.adaptiveThreshold(
-                denoised, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2
+                enhanced, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2
             )
 
             # Smaller border for faster processing
@@ -59,17 +64,15 @@ class ImagePreprocessor:
             lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
             l, a, b = cv2.split(lab)
 
-            # Faster CLAHE with smaller grid
-            clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(4, 4))
+            # Use cached CLAHE
+            clahe = ImagePreprocessor._get_clahe()
             cl = clahe.apply(l)
 
             # Merge back and convert to BGR
             limg = cv2.merge((cl, a, b))
             enhanced = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
 
-            # Faster denoising with optimized parameters
-            enhanced = cv2.fastNlMeansDenoisingColored(enhanced, None, 3, 3, 7, 15)
-
+            # Skip denoising for speed - OCR can handle some noise
             # Smaller border for faster processing
             border_size = 5
             with_border = cv2.copyMakeBorder(

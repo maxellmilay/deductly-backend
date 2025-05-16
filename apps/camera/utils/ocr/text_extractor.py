@@ -11,9 +11,10 @@ import cv2
 import logging
 import json
 import re
-import asyncio
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import cloudinary.uploader
+import threading
+from functools import lru_cache
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -26,7 +27,9 @@ load_dotenv()
 client = OpenAI(api_key=os.getenv("OPEN_AI_API_KEY"))
 
 # Create a thread pool for parallel processing
-executor = ThreadPoolExecutor(max_workers=2)
+executor = ThreadPoolExecutor(
+    max_workers=4
+)  # Increased workers for parallel processing
 
 
 class TextExtractor:
@@ -34,11 +37,64 @@ class TextExtractor:
 
     def __init__(self):
         self._image_cache = {}  # Simple cache for processed images
+        self._lock = threading.Lock()  # Thread-safe cache operations
+
+    @staticmethod
+    @lru_cache(maxsize=100)
+    def _get_optimized_prompt() -> str:
+        """Cache the prompt to avoid string operations."""
+        return """Extract and structure the following receipt information in JSON format. 
+        This is a Philippine receipt, so look for:
+        - Store name and TIN (Tax Identification Number)
+        - Date and time
+        - Items with quantities and prices
+        - VAT (12%)
+        - Service charge
+        - Discounts
+        - Payment method (Cash, Card, GCash, etc.)
+        - Total amount
+        
+        Format the response as a JSON object with these fields:
+        {
+            "store_info": {
+                "name": "store name",
+                "tin": "TIN number if available",
+                "branch": "branch name if available"
+            },
+            "transaction_info": {
+                "date": "date in YYYY-MM-DD format",
+                "time": "time in HH:MM:SS format",
+                "payment_method": "payment method"
+            },
+            "items": [
+                {
+                    "name": "item name",
+                    "quantity": "quantity",
+                    "price": "price"
+                }
+            ],
+            "totals": {
+                "subtotal": "subtotal",
+                "vat": "VAT amount",
+                "service_charge": "service charge",
+                "discount": "discount amount",
+                "total": "total amount"
+            },
+            "metadata": {
+                "currency": "PHP",
+                "vat_rate": 0.12,
+                "bir_accreditation": "BIR accreditation number if available",
+                "serial_number": "serial number if available"
+            }
+        }
+
+        Extract all text from this receipt and structure it according to the above format.
+        """
 
     def _optimize_image(self, image: np.ndarray) -> tuple:
         """Optimize image for API with minimal processing."""
         try:
-            # Optimize image size for API
+            # Optimize image size for API using fastest interpolation
             max_dimension = 1024
             height, width = image.shape[:2]
 
@@ -46,23 +102,21 @@ class TextExtractor:
                 scale = max_dimension / max(height, width)
                 new_width = int(width * scale)
                 new_height = int(height * scale)
+                # Use INTER_NEAREST for fastest resizing - quality is sufficient for OCR
                 image = cv2.resize(
-                    image, (new_width, new_height), interpolation=cv2.INTER_AREA
+                    image, (new_width, new_height), interpolation=cv2.INTER_NEAREST
                 )
                 logger.info(f"Resized image to: {new_width}x{new_height}")
 
-            # Optimize image encoding with lower quality
-            _, buffer = cv2.imencode(".jpg", image, [cv2.IMWRITE_JPEG_QUALITY, 70])
-
-            # Upload to Cloudinary and get URL
-            result = cloudinary.uploader.upload(
-                buffer.tobytes(),
-                resource_type="image",
-                format="jpg",
-                folder="receipts/temp",
+            # Optimize image encoding with lower quality and faster compression
+            # Use IMWRITE_JPEG_OPTIMIZE=1 for faster encoding
+            _, buffer = cv2.imencode(
+                ".jpg",
+                image,
+                [cv2.IMWRITE_JPEG_QUALITY, 70, cv2.IMWRITE_JPEG_OPTIMIZE, 1],
             )
 
-            return result["secure_url"], image.shape
+            return buffer.tobytes(), image.shape
         except Exception as e:
             logger.error(f"Error optimizing image: {str(e)}")
             return None, None
@@ -70,50 +124,6 @@ class TextExtractor:
     def _make_api_call(self, image_url: str) -> Dict[str, Any]:
         """Make API call with optimized parameters."""
         try:
-            # Optimized prompt focusing on tax deduction essentials
-            prompt = """Extract and structure the following receipt information in JSON format for tax deduction purposes.
-            Focus on these essential details:
-            - Store/Vendor name and TIN (Tax Identification Number)
-            - Date and time of transaction
-            - Items with quantities and prices
-            - VAT amount (12%)
-            - Discount amount
-            - Payment method
-            - Total amount
-            
-            Format the response as a JSON object with these fields:
-            {
-                "store_info": {
-                    "name": "store/vendor name",
-                    "tin": "TIN number if available"
-                },
-                "transaction_info": {
-                    "date": "date in YYYY-MM-DD format",
-                    "time": "time in HH:MM:SS format",
-                    "payment_method": "payment method"
-                },
-                "items": [
-                    {
-                        "title": "item name",
-                        "quantity": "quantity as integer",
-                        "price": "price as decimal",
-                        "subtotal": "quantity * price as decimal"
-                    }
-                ],
-                "totals": {
-                    "total_expediture": "total amount as decimal",
-                    "value_added_tax": "VAT amount as decimal",
-                    "discount": "discount amount as decimal"
-                }
-            }
-
-            Important notes:
-            1. All monetary values should be decimal numbers
-            2. Quantities should be integers
-            3. Focus on accuracy of financial data
-            4. If any field is not found, use null
-            """
-
             logger.info("Sending request to OpenAI Vision API...")
             response = client.chat.completions.create(
                 model="gpt-4.1-nano",
@@ -121,7 +131,7 @@ class TextExtractor:
                     {
                         "role": "user",
                         "content": [
-                            {"type": "text", "text": prompt},
+                            {"type": "text", "text": self._get_optimized_prompt()},
                             {
                                 "type": "image_url",
                                 "image_url": {"url": image_url},
@@ -129,7 +139,7 @@ class TextExtractor:
                         ],
                     }
                 ],
-                max_tokens=600,  # Further reduced for faster response
+                max_tokens=600,
                 temperature=0.1,
             )
 
@@ -158,26 +168,36 @@ class TextExtractor:
         try:
             # Check cache first
             image_hash = hash(image.tobytes())
-            if image_hash in self._image_cache:
-                logger.info("Using cached result")
-                return self._image_cache[image_hash]
+            with self._lock:
+                if image_hash in self._image_cache:
+                    logger.info("Using cached result")
+                    return self._image_cache[image_hash]
 
-            # Optimize image and get URL
-            image_url, _ = self._optimize_image(image)
-            if not image_url:
+            # Optimize image and get buffer
+            buffer, _ = self._optimize_image(image)
+            if not buffer:
                 return {"success": False, "error": "Failed to optimize image"}
 
+            # Upload to Cloudinary and get URL
+            result = cloudinary.uploader.upload(
+                buffer,
+                resource_type="image",
+                format="jpg",
+                folder="receipts/temp",
+            )
+
             # Make API call
-            result = self._make_api_call(image_url)
+            api_result = self._make_api_call(result["secure_url"])
 
             # Cache successful results
-            if result["success"]:
-                self._image_cache[image_hash] = result
-                # Limit cache size
-                if len(self._image_cache) > 100:
-                    self._image_cache.pop(next(iter(self._image_cache)))
+            if api_result["success"]:
+                with self._lock:
+                    self._image_cache[image_hash] = api_result
+                    # Limit cache size
+                    if len(self._image_cache) > 100:
+                        self._image_cache.pop(next(iter(self._image_cache)))
 
-            return result
+            return api_result
 
         except Exception as e:
             logger.error(f"Error in text extraction: {str(e)}")

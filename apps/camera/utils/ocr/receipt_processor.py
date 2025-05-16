@@ -6,8 +6,6 @@ import numpy as np
 from typing import Dict, Any, Optional, Union
 import cv2
 import base64
-import io
-from PIL import Image
 import logging
 
 from .image_preprocessor import ImagePreprocessor
@@ -45,7 +43,7 @@ class ReceiptProcessor:
                 return cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
             elif isinstance(image_data, np.ndarray):
-                return image_data.copy()
+                return image_data
 
             else:
                 raise ValueError("Unsupported image format")
@@ -82,24 +80,28 @@ class ReceiptProcessor:
             if image is None:
                 raise ValueError("Failed to load image")
 
-            # Preprocess image
-            processed_image, preprocess_success = self.image_preprocessor.process_image(
-                image
-            )
-
-            if return_debug_info:
-                result["debug_info"]["preprocessing"] = {
-                    "success": preprocess_success,
-                    "image_shape": processed_image.shape,
-                }
-
-            # Extract text and parse receipt in one step
-            extraction_result = self.text_extractor.extract_text(processed_image)
+            # Skip preprocessing for color images and go straight to text extraction
+            # This is faster and the Vision API can handle color images well
+            extraction_result = self.text_extractor.extract_text(image)
 
             if not extraction_result["success"]:
-                raise ValueError(
-                    f"Text extraction failed: {extraction_result.get('error')}"
-                )
+                # If extraction fails, try with preprocessing
+                (
+                    processed_image,
+                    preprocess_success,
+                ) = self.image_preprocessor.process_image(image)
+                if preprocess_success:
+                    extraction_result = self.text_extractor.extract_text(
+                        processed_image
+                    )
+                    if not extraction_result["success"]:
+                        raise ValueError(
+                            f"Text extraction failed: {extraction_result.get('error')}"
+                        )
+                else:
+                    raise ValueError(
+                        f"Text extraction failed: {extraction_result.get('error')}"
+                    )
 
             # Set success result
             result["success"] = True
@@ -155,16 +157,13 @@ class ReceiptProcessor:
         """Return information about supported formats and features."""
         return {
             "input_formats": ["base64 image string", "image bytes", "numpy array"],
-            "output_formats": ["JSON", "CSV"],
+            "output_formats": ["JSON"],
             "supported_receipt_features": [
-                "Store name and branch",
-                "TIN number",
+                "Store name and TIN",
                 "Date and time",
                 "Items and prices",
                 "VAT details",
                 "Total amount",
-                "BIR accreditation",
-                "Serial number",
             ],
             "supported_languages": [
                 "English",

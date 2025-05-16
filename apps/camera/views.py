@@ -6,9 +6,6 @@ from .serializers import ImageSerializer
 from .models import Image
 from rest_framework.permissions import IsAuthenticated
 from .utils.ocr import ReceiptProcessor
-import base64
-import io
-from PIL import Image as PILImage
 import logging
 import numpy as np
 import json
@@ -16,6 +13,10 @@ from .utils.cloudinary import upload_base64_image
 import threading
 from django.views.decorators.gzip import gzip_page
 from django.utils.decorators import method_decorator
+import cv2
+import base64
+import io
+from PIL import Image as PILImage
 
 logger = logging.getLogger(__name__)
 
@@ -26,10 +27,14 @@ class ImageView(GenericView):
     # permission_classes = [IsAuthenticated]
     cache_key_prefix = "image"
 
-    def _upload_to_cloudinary_async(self, image_data, result):
+    def _upload_to_cloudinary_async(self, image_file, result):
         """Asynchronously upload image to Cloudinary and update result."""
         try:
-            cloudinary_result = upload_base64_image(image_data)
+            # Convert to base64 for Cloudinary
+            _, buffer = cv2.imencode(".jpg", image_file)
+            image_b64 = base64.b64encode(buffer).decode("utf-8")
+
+            cloudinary_result = upload_base64_image(image_b64)
             if cloudinary_result.get("success"):
                 result["data"]["image_url"] = cloudinary_result.get("public_url")
                 logger.info("Successfully uploaded image to Cloudinary asynchronously")
@@ -42,28 +47,25 @@ class ImageView(GenericView):
         try:
             logger.info("Received process_receipt request")
 
-            # Get the image data from the request
-            image_data = request.data.get("image")
-            if not image_data:
-                logger.error("No image data provided in request")
+            # Get the image file from the request
+            image_file = request.FILES.get("image")
+            if not image_file:
+                logger.error("No image file provided in request")
                 return Response(
                     {"error": "No image provided"}, status=status.HTTP_400_BAD_REQUEST
                 )
 
-            logger.info("Processing image data...")
-            # Convert base64 to image
-            if isinstance(image_data, str) and image_data.startswith("data:image"):
-                # Remove the data URL prefix if present
-                image_data = image_data.split("base64,")[1]
-                logger.info("Removed data URL prefix")
-
+            logger.info("Processing image file...")
             try:
-                image_bytes = base64.b64decode(image_data)
-                logger.info("Successfully decoded base64 image")
+                # Read image file directly into numpy array
+                image_bytes = image_file.read()
+                nparr = np.frombuffer(image_bytes, np.uint8)
+                image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+                logger.info("Successfully loaded image file")
             except Exception as e:
-                logger.error(f"Failed to decode base64 image: {str(e)}")
+                logger.error(f"Failed to load image file: {str(e)}")
                 return Response(
-                    {"error": "Invalid image data"}, status=status.HTTP_400_BAD_REQUEST
+                    {"error": "Invalid image file"}, status=status.HTTP_400_BAD_REQUEST
                 )
 
             # Process the receipt using ReceiptProcessor
@@ -72,7 +74,7 @@ class ImageView(GenericView):
 
             # Process receipt using the combined method with debug info
             result = processor.process_receipt(
-                image_bytes, return_debug_info=False
+                image, return_debug_info=False
             )  # Set to False to reduce response size
             logger.info("Receipt processing complete")
 
@@ -85,7 +87,7 @@ class ImageView(GenericView):
 
             # Start async Cloudinary upload
             upload_thread = threading.Thread(
-                target=self._upload_to_cloudinary_async, args=(image_data, result)
+                target=self._upload_to_cloudinary_async, args=(image, result)
             )
             upload_thread.start()
 

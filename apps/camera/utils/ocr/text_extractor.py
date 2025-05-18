@@ -59,7 +59,8 @@ class TextExtractor:
             "store_info": {
                 "name": "store name",
                 "tin": "TIN number if available",
-                "branch": "branch name if available"
+                "branch": "branch name if available",
+                "address": "store address"
             },
             "transaction_info": {
                 "date": "date in YYYY-MM-DD format",
@@ -70,7 +71,11 @@ class TextExtractor:
                 {
                     "name": "item name",
                     "quantity": "quantity",
-                    "price": "price"
+                    "price": "price",
+                    "subtotal": "subtotal",
+                    "is_deductible": true/false,
+                    "deductible_amount": "amount that can be deducted",
+                    "category": "FOOD/TRANSPORTATION/ENTERTAINMENT/OTHER"
                 }
             ],
             "totals": {
@@ -84,11 +89,30 @@ class TextExtractor:
                 "currency": "PHP",
                 "vat_rate": 0.12,
                 "bir_accreditation": "BIR accreditation number if available",
-                "serial_number": "serial number if available"
+                "serial_number": "serial number if available",
+                "transaction_category": "FOOD/TRANSPORTATION/ENTERTAINMENT/OTHER",
+                "is_deductible": true/false,
+                "deductible_amount": "total amount that can be deducted"
             }
         }
 
+        For deductibility classification:
+        1. FOOD: 
+           - Business meals with clients: 50% deductible
+           - Employee meals: 100% deductible
+           - Personal meals: 0% deductible
+        2. TRANSPORTATION:
+           - Business travel: 100% deductible
+           - Personal travel: 0% deductible
+        3. ENTERTAINMENT:
+           - Business entertainment: 50% deductible
+           - Personal entertainment: 0% deductible
+        4. OTHER:
+           - Business expenses: 100% deductible
+           - Personal expenses: 0% deductible
+
         Extract all text from this receipt and structure it according to the above format.
+        For each item, determine if it's deductible based on the context and business purpose.
         """
 
     def _optimize_image(self, image: np.ndarray) -> tuple:
@@ -207,3 +231,66 @@ class TextExtractor:
         """Main method to extract text from image."""
         logger.info("Starting text extraction process...")
         return self.extract_with_openai_vision(image)
+
+    def save_to_database(
+        self, extracted_data: Dict[str, Any], user_id: int, image_id: int
+    ) -> Dict[str, Any]:
+        """Save extracted receipt data to database."""
+        try:
+            from apps.receipt.models import Receipt, ReceiptItem, Vendor
+            from apps.camera.models import Image
+            from apps.account.models import CustomUser
+            from decimal import Decimal
+
+            # Get or create vendor
+            vendor_data = extracted_data.get("store_info", {})
+            vendor, _ = Vendor.objects.get_or_create(
+                name=vendor_data.get("name", "Unknown Vendor"),
+                defaults={
+                    "address": vendor_data.get("address", ""),
+                    "email": "",  # You might want to add this to the extraction
+                    "contact_number": "",  # You might want to add this to the extraction
+                    "establishment": vendor_data.get("branch", ""),
+                },
+            )
+
+            # Create receipt
+            totals = extracted_data.get("totals", {})
+            metadata = extracted_data.get("metadata", {})
+
+            receipt = Receipt.objects.create(
+                title=f"Receipt from {vendor.name}",
+                user_id=user_id,
+                category=metadata.get("transaction_category", "OTHER"),
+                image_id=image_id,
+                total_expediture=Decimal(str(totals.get("total", 0))),
+                payment_method=extracted_data.get("transaction_info", {}).get(
+                    "payment_method", "Unknown"
+                ),
+                vendor=vendor,
+                discount=Decimal(str(totals.get("discount", 0))),
+                value_added_tax=Decimal(str(totals.get("vat", 0))),
+            )
+
+            # Create receipt items
+            for item_data in extracted_data.get("items", []):
+                ReceiptItem.objects.create(
+                    title=item_data.get("name", "Unknown Item"),
+                    quantity=int(item_data.get("quantity", 1)),
+                    price=Decimal(str(item_data.get("price", 0))),
+                    subtotal_expenditure=Decimal(str(item_data.get("subtotal", 0))),
+                    receipt=receipt,
+                    deductable_amount=Decimal(
+                        str(item_data.get("deductible_amount", 0))
+                    ),
+                )
+
+            return {
+                "success": True,
+                "receipt_id": receipt.id,
+                "message": "Receipt data saved successfully",
+            }
+
+        except Exception as e:
+            logger.error(f"Error saving receipt data: {str(e)}")
+            return {"success": False, "error": str(e)}

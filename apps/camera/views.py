@@ -6,6 +6,7 @@ from .serializers import ImageSerializer
 from .models import Image
 from rest_framework.permissions import IsAuthenticated
 from .utils.ocr import ReceiptProcessor
+from apps.account.models import CustomUser
 import base64
 import io
 from PIL import Image as PILImage
@@ -26,13 +27,20 @@ class ImageView(GenericView):
     # permission_classes = [IsAuthenticated]
     cache_key_prefix = "image"
 
-    def _upload_to_cloudinary_async(self, image_data, result):
+    def _upload_to_cloudinary_async(self, image_data, result, user):
         """Asynchronously upload image to Cloudinary and update result."""
         try:
             cloudinary_result = upload_base64_image(image_data)
             if cloudinary_result.get("success"):
-                result["data"]["image_url"] = cloudinary_result.get("public_url")
-                logger.info("Successfully uploaded image to Cloudinary asynchronously")
+                public_url = cloudinary_result.get("public_url")
+                public_id = cloudinary_result.get("public_id")
+                result["data"]["image_url"] = public_url
+
+                # Create Image instance
+                Image.objects.create(title=public_id, user=user, image_url=public_url)
+                logger.info(
+                    "Successfully uploaded image to Cloudinary and created Image instance"
+                )
         except Exception as e:
             logger.error(f"Error in async Cloudinary upload: {str(e)}")
 
@@ -102,8 +110,10 @@ class ImageView(GenericView):
                 image_data = base64.b64encode(image_bytes).decode("utf-8")
 
             # Start async Cloudinary upload
+            default_user = CustomUser.objects.get(id=1)
             upload_thread = threading.Thread(
-                target=self._upload_to_cloudinary_async, args=(image_data, result)
+                target=self._upload_to_cloudinary_async,
+                args=(image_data, result, default_user),
             )
             upload_thread.start()
 

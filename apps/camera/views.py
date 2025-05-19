@@ -12,6 +12,10 @@ from PIL import Image as PILImage
 import logging
 import numpy as np
 import json
+from .utils.cloudinary import upload_base64_image
+import threading
+from django.views.decorators.gzip import gzip_page
+from django.utils.decorators import method_decorator
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +26,17 @@ class ImageView(GenericView):
     # permission_classes = [IsAuthenticated]
     cache_key_prefix = "image"
 
+    def _upload_to_cloudinary_async(self, image_data, result):
+        """Asynchronously upload image to Cloudinary and update result."""
+        try:
+            cloudinary_result = upload_base64_image(image_data)
+            if cloudinary_result.get("success"):
+                result["data"]["image_url"] = cloudinary_result.get("public_url")
+                logger.info("Successfully uploaded image to Cloudinary asynchronously")
+        except Exception as e:
+            logger.error(f"Error in async Cloudinary upload: {str(e)}")
+
+    @method_decorator(gzip_page)
     @action(detail=False, methods=["POST"])
     def process_receipt(self, request):
         try:
@@ -56,10 +71,10 @@ class ImageView(GenericView):
             processor = ReceiptProcessor()
 
             # Process receipt using the combined method with debug info
-            result = processor.process_receipt(image_bytes, return_debug_info=True)
-            logger.info(
-                f"Receipt processing complete. Result: {json.dumps(result, indent=2)}"
-            )
+            result = processor.process_receipt(
+                image_bytes, return_debug_info=False
+            )  # Set to False to reduce response size
+            logger.info("Receipt processing complete")
 
             if not result.get("success"):
                 logger.error(f"Receipt processing failed: {result.get('error')}")
@@ -68,9 +83,17 @@ class ImageView(GenericView):
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 )
 
-            return Response(
-                {"success": True, "data": result.get("data")}, status=status.HTTP_200_OK
+            # Start async Cloudinary upload
+            upload_thread = threading.Thread(
+                target=self._upload_to_cloudinary_async, args=(image_data, result)
             )
+            upload_thread.start()
+
+            # Prepare minimal response data
+            response_data = {"success": True, "data": result.get("data")}
+
+            # Return response immediately with receipt data
+            return Response(response_data, status=status.HTTP_200_OK)
 
         except Exception as e:
             logger.error(f"Error processing receipt: {str(e)}")

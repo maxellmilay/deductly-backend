@@ -18,7 +18,8 @@ import io
 from PIL import Image as PILImage
 import cloudinary.uploader
 from datetime import datetime
-from apps.receipt.models import Receipt, ReceiptItem, Vendor
+from apps.receipt.models import Receipt, ReceiptItem, Vendor, ReceiptImage
+from django.views.decorators.csrf import csrf_exempt
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +47,7 @@ class ImageView(GenericView):
         except Exception as e:
             logger.error(f"Error in async Cloudinary upload: {str(e)}")
 
+    @method_decorator(csrf_exempt)
     @method_decorator(gzip_page)
     @action(detail=False, methods=["POST"])
     def process_receipt(self, request):
@@ -140,18 +142,12 @@ class ImageView(GenericView):
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
+    @method_decorator(csrf_exempt)
     @action(detail=False, methods=["POST"])
     def save_receipt(self, request):
         try:
             logger.info("Received save_receipt request")
             logger.info(f"Request data: {request.data}")
-
-            if not request.user.is_authenticated:
-                logger.error("User not authenticated")
-                return Response(
-                    {"error": "Authentication required"},
-                    status=status.HTTP_401_UNAUTHORIZED,
-                )
 
             data = request.data
 
@@ -181,15 +177,31 @@ class ImageView(GenericView):
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 )
 
+            # Create ReceiptImage record first
+            try:
+                receipt_image = ReceiptImage.objects.create(
+                    title=f"Receipt Image {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+                    user=request.user if request.user.is_authenticated else None,
+                    image_url="",  # This will be updated later if needed
+                )
+                logger.info(f"ReceiptImage record created with ID: {receipt_image.id}")
+            except Exception as e:
+                logger.error(f"Error creating receipt image record: {str(e)}")
+                return Response(
+                    {"error": f"Failed to create receipt image record: {str(e)}"},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
+
             # Create receipt
             logger.info("Creating receipt record")
             try:
                 receipt = Receipt.objects.create(
                     title=f"Receipt from {vendor.name}",
-                    user=request.user,
+                    user=request.user if request.user.is_authenticated else None,
                     category=data.get("metadata", {}).get(
                         "transaction_category", "OTHER"
                     ),
+                    image=receipt_image,  # Link to the created receipt image
                     total_expediture=float(
                         data.get("totals", {}).get("total_expediture", 0)
                     ),
@@ -205,6 +217,8 @@ class ImageView(GenericView):
                 logger.info(f"Receipt created with ID: {receipt.id}")
             except Exception as e:
                 logger.error(f"Error creating receipt: {str(e)}")
+                # Clean up the receipt image record if receipt creation fails
+                receipt_image.delete()
                 return Response(
                     {"error": f"Failed to create receipt: {str(e)}"},
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -226,8 +240,9 @@ class ImageView(GenericView):
                 logger.info("All receipt items created successfully")
             except Exception as e:
                 logger.error(f"Error creating receipt items: {str(e)}")
-                # Delete the receipt if items creation fails
+                # Delete both receipt and receipt image if items creation fails
                 receipt.delete()
+                receipt_image.delete()
                 return Response(
                     {"error": f"Failed to create receipt items: {str(e)}"},
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR,

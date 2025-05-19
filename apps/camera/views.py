@@ -51,20 +51,34 @@ class ImageView(GenericView):
                 )
 
             logger.info("Processing image data...")
-            # Convert base64 to image
-            if isinstance(image_data, str) and image_data.startswith("data:image"):
-                # Remove the data URL prefix if present
-                image_data = image_data.split("base64,")[1]
-                logger.info("Removed data URL prefix")
 
-            try:
-                image_bytes = base64.b64decode(image_data)
-                logger.info("Successfully decoded base64 image")
-            except Exception as e:
-                logger.error(f"Failed to decode base64 image: {str(e)}")
-                return Response(
-                    {"error": "Invalid image data"}, status=status.HTTP_400_BAD_REQUEST
-                )
+            # Handle file upload
+            if hasattr(image_data, "read"):
+                try:
+                    image_bytes = image_data.read()
+                    logger.info("Successfully read uploaded file")
+                except Exception as e:
+                    logger.error(f"Failed to read uploaded file: {str(e)}")
+                    return Response(
+                        {"error": "Invalid file upload"},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+            # Handle base64 string
+            else:
+                if isinstance(image_data, str) and image_data.startswith("data:image"):
+                    # Remove the data URL prefix if present
+                    image_data = image_data.split("base64,")[1]
+                    logger.info("Removed data URL prefix")
+
+                try:
+                    image_bytes = base64.b64decode(image_data)
+                    logger.info("Successfully decoded base64 image")
+                except Exception as e:
+                    logger.error(f"Failed to decode base64 image: {str(e)}")
+                    return Response(
+                        {"error": "Invalid image data"},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
 
             # Process the receipt using ReceiptProcessor
             logger.info("Starting receipt processing...")
@@ -82,6 +96,10 @@ class ImageView(GenericView):
                     {"error": result.get("error", "Failed to process receipt")},
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 )
+
+            # Convert image_bytes to base64 for Cloudinary upload if it's from file upload
+            if hasattr(image_data, "read"):
+                image_data = base64.b64encode(image_bytes).decode("utf-8")
 
             # Start async Cloudinary upload
             upload_thread = threading.Thread(

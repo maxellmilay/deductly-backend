@@ -6,13 +6,11 @@ from .serializers import ImageSerializer
 from .models import Image
 from rest_framework.permissions import IsAuthenticated
 from .utils.ocr import ReceiptProcessor
-from apps.account.models import CustomUser
 import base64
 import io
 from PIL import Image as PILImage
 import logging
 import numpy as np
-import json
 from .utils.cloudinary import upload_base64_image
 import threading
 from django.views.decorators.gzip import gzip_page
@@ -20,10 +18,10 @@ from django.utils.decorators import method_decorator
 import cv2
 import io
 from PIL import Image as PILImage
-import cloudinary.uploader
 from datetime import datetime
 from apps.receipt.models import Receipt, ReceiptItem, Vendor, ReceiptImage
 from django.views.decorators.csrf import csrf_exempt
+from django.db.models import Q
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +30,12 @@ class ImageView(GenericView):
     queryset = Image.objects.all()
     serializer_class = ImageSerializer
     permission_classes = [IsAuthenticated]
+
+    def filter_queryset(self, filters, excludes):
+        filters["user"] = self.request.user
+        filter_q = Q(**filters)
+        exclude_q = Q(**excludes)
+        return self.queryset.filter(filter_q).exclude(exclude_q)
 
     def _upload_to_cloudinary_async(self, image_data, result, user):
         """Asynchronously upload image to Cloudinary and update result."""

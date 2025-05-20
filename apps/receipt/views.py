@@ -1,7 +1,7 @@
 from main.utils.generic_api import GenericView
 from .serializers import ReceiptSerializer, VendorSerializer, ReceiptItemSerializer
 from .models import Receipt, Vendor, ReceiptItem
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.permissions import IsAuthenticated
 from django.db.models import Q
 
 

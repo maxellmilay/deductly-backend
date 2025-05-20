@@ -1,4 +1,5 @@
 from django.db import models
+from apps.account.models import CustomUser
 
 
 class Report(models.Model):
@@ -9,6 +10,7 @@ class Report(models.Model):
         YEARLY = "YEARLY"
 
     title = models.CharField(max_length=255)
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
     category = models.CharField(max_length=255, choices=Category.choices)
     start_date = models.DateField()
     end_date = models.DateField()

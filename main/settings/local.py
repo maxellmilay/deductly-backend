@@ -54,14 +54,15 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
+    "main.middleware.DisableCSRFMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "main.middleware.JWTAuthMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    "corsheaders.middleware.CorsMiddleware",
-    # "main.middleware.JWTAuthMiddleware",
 ]
 
 ROOT_URLCONF = "main.urls"
@@ -143,3 +144,14 @@ AUTH_USER_MODEL = "account.CustomUser"
 
 # CORS
 CORS_ALLOW_ALL_ORIGINS = True
+
+# CSRF
+CSRF_TRUSTED_ORIGINS = ["http://localhost:8000", "http://127.0.0.1:8000"]
+CSRF_COOKIE_SECURE = False
+CSRF_USE_SESSIONS = False
+CSRF_COOKIE_HTTPONLY = False
+
+# Disable CSRF for API endpoints
+CSRF_EXEMPT_URLS = [
+    r"^api/.*$",  # Exempt all URLs starting with /api/
+]

@@ -8,6 +8,13 @@ urlpatterns = [
         ImageView.as_view({"post": "process_receipt"}),
         name="process-receipt",
     ),
+    # Save receipt endpoint
+    path(
+        "save_receipt/",
+        ImageView.as_view({"post": "save_receipt"}),
+        name="save-receipt",
+    ),
+    # Cloudinary images endpoint
     path(
         "cloudinary_images/",
         ImageView.as_view({"get": "cloudinary_images"}),

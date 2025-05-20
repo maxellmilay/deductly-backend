@@ -7,9 +7,9 @@ import logging
 logger = logging.getLogger(__name__)
 
 cloudinary.config(
-    cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME", "dzoy1bipn"),
-    api_key=os.getenv("CLOUDINARY_API_KEY", "511386762631941"),
-    api_secret=os.getenv("CLOUDINARY_API_SECRET", "evl1E4X-IAzRNmBV4bcX8FctD_M"),
+    cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
+    api_key=os.getenv("CLOUDINARY_API_KEY"),
+    api_secret=os.getenv("CLOUDINARY_API_SECRET"),
     secure=True,
 )
 

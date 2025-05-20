@@ -102,7 +102,7 @@ class ImageView(GenericView):
 
             # Process receipt using the combined method with debug info
             result = processor.process_receipt(
-                image, return_debug_info=False
+                image_data, return_debug_info=False
             )  # Set to False to reduce response size
             logger.info("Receipt processing complete")
 
@@ -118,6 +118,7 @@ class ImageView(GenericView):
                 image_data = base64.b64encode(image_bytes).decode("utf-8")
 
             # Start async Cloudinary upload
+            print("TESTING USER REQUEST", request.user)
             default_user = CustomUser.objects.get(id=1)
             upload_thread = threading.Thread(
                 target=self._upload_to_cloudinary_async,

@@ -6,6 +6,7 @@ from .serializers import ImageSerializer
 from .models import Image
 from rest_framework.permissions import IsAuthenticated
 from .utils.ocr import ReceiptProcessor
+from .utils.cloudinary_api import fetch_cloudinary_images
 import base64
 import io
 from PIL import Image as PILImage
@@ -16,6 +17,9 @@ from .utils.cloudinary import upload_base64_image
 import threading
 from django.views.decorators.gzip import gzip_page
 from django.utils.decorators import method_decorator
+from django.core.cache import cache
+from django.http import StreamingHttpResponse
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -97,6 +101,41 @@ class ImageView(GenericView):
 
         except Exception as e:
             logger.error(f"Error processing receipt: {str(e)}")
+            return Response(
+                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    @action(detail=False, methods=["GET"])
+    def cloudinary_images(self, request):
+        """
+        Fetch images directly from Cloudinary
+        """
+        try:
+            # Get query parameters
+            folder = request.query_params.get("folder", "receipts")
+            max_results = int(request.query_params.get("max_results", 100))
+
+            logger.info(
+                f"Received request for Cloudinary images. Folder: {folder}, Max results: {max_results}"
+            )
+
+            # Fetch images from Cloudinary
+            result = fetch_cloudinary_images(folder=folder, max_results=max_results)
+
+            if not result["success"]:
+                logger.error(f"Failed to fetch images: {result.get('error')}")
+                return Response(
+                    {"error": result["error"]},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
+
+            resources = result.get("resources", [])
+            logger.info(f"Returning {len(resources)} images")
+
+            return Response({"success": True, "data": resources})
+
+        except Exception as e:
+            logger.error(f"Error in cloudinary_images view: {str(e)}")
             return Response(
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )

@@ -14,14 +14,15 @@ cloudinary.config(
 )
 
 
-def upload_base64_image(base64_data, filename=None, folder="receipts"):
+def upload_base64_image(base64_data, user_id, filename=None, folder="receipts"):
     """
     Upload a base64 image to Cloudinary and return the public URL
 
     Args:
         base64_data (str): Base64 encoded image data. Can include data URL prefix.
+        user_id (int): The ID of the user uploading the image
         filename (str, optional): Name to give the file on Cloudinary. If None, Cloudinary will auto-generate one.
-        folder (str, optional): Folder in Cloudinary to store the image. Defaults to "receipts".
+        folder (str, optional): Base folder in Cloudinary to store the image. Defaults to "receipts".
 
     Returns:
         dict: Dictionary containing:
@@ -29,6 +30,7 @@ def upload_base64_image(base64_data, filename=None, folder="receipts"):
             - 'public_url': The public HTTP URL of the uploaded image
             - 'secure_url': The secure HTTPS URL of the image
             - 'public_id': The public ID of the image in Cloudinary
+            - 'user_id': The ID of the user who uploaded the image
             - 'metadata': Additional metadata returned by Cloudinary
             - 'error': Error message if upload failed
 
@@ -36,15 +38,15 @@ def upload_base64_image(base64_data, filename=None, folder="receipts"):
         Exception: If upload fails
     """
     try:
-        logger.info(f"Uploading image to Cloudinary: {filename}")
+        logger.info(f"Uploading image to Cloudinary for user {user_id}: {filename}")
 
         # Handle data URL format (data:image/jpeg;base64,...)
         if isinstance(base64_data, str) and base64_data.startswith("data:image"):
             base64_data = base64_data.split("base64,")[1]
 
-        # Set upload parameters
+        # Set upload parameters with user-specific folder
         upload_params = {
-            "folder": folder,
+            "folder": f"{folder}/{user_id}",
         }
 
         if filename:
@@ -64,6 +66,7 @@ def upload_base64_image(base64_data, filename=None, folder="receipts"):
             "public_url": result.get("url"),  # HTTP URL
             "secure_url": result.get("secure_url"),  # HTTPS URL
             "public_id": result.get("public_id"),
+            "user_id": user_id,
             "metadata": result,
         }
 

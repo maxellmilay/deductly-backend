@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from .serializers import ImageSerializer
 from .models import Image
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.permissions import IsAuthenticated
 from .utils.ocr import ReceiptProcessor
 from .utils.cloudinary_api import fetch_cloudinary_images
 from apps.account.models import CustomUser
@@ -13,7 +13,6 @@ import io
 from PIL import Image as PILImage
 import logging
 import numpy as np
-import json
 from .utils.cloudinary import upload_base64_image
 import threading
 from django.views.decorators.gzip import gzip_page
@@ -24,10 +23,10 @@ import time
 import cv2
 import io
 from PIL import Image as PILImage
-import cloudinary.uploader
 from datetime import datetime
 from apps.receipt.models import Receipt, ReceiptItem, Vendor, ReceiptImage
 from django.views.decorators.csrf import csrf_exempt
+from django.db.models import Q
 
 logger = logging.getLogger(__name__)
 
@@ -35,8 +34,13 @@ logger = logging.getLogger(__name__)
 class ImageView(GenericView):
     queryset = Image.objects.all()
     serializer_class = ImageSerializer
-    permission_classes = [AllowAny]  # Allow unauthenticated access for testing
-    cache_key_prefix = "image"
+    permission_classes = [IsAuthenticated]
+
+    def filter_queryset(self, filters, excludes):
+        filters["user"] = self.request.user
+        filter_q = Q(**filters)
+        exclude_q = Q(**excludes)
+        return self.queryset.filter(filter_q).exclude(exclude_q)
 
     def _upload_to_cloudinary_async(self, image_data, result, user):
         """Asynchronously upload image to Cloudinary and update result."""
@@ -73,9 +77,9 @@ class ImageView(GenericView):
             logger.info("Processing image data...")
 
             # Handle file upload
-            if hasattr(image_data, "read"):
+            if hasattr(image_file, "read"):
                 try:
-                    image_bytes = image_data.read()
+                    image_bytes = image_file.read()
                     logger.info("Successfully read uploaded file")
                 except Exception as e:
                     logger.error(f"Failed to read uploaded file: {str(e)}")
@@ -85,13 +89,13 @@ class ImageView(GenericView):
                     )
             # Handle base64 string
             else:
-                if isinstance(image_data, str) and image_data.startswith("data:image"):
+                if isinstance(image_file, str) and image_file.startswith("data:image"):
                     # Remove the data URL prefix if present
-                    image_data = image_data.split("base64,")[1]
+                    image_file = image_file.split("base64,")[1]
                     logger.info("Removed data URL prefix")
 
                 try:
-                    image_bytes = base64.b64decode(image_data)
+                    image_bytes = base64.b64decode(image_file)
                     logger.info("Successfully decoded base64 image")
                 except Exception as e:
                     logger.error(f"Failed to decode base64 image: {str(e)}")
@@ -104,11 +108,26 @@ class ImageView(GenericView):
             logger.info("Starting receipt processing...")
             processor = ReceiptProcessor()
 
-            # Process receipt using the combined method with debug info
-            result = processor.process_receipt(
-                image_data, return_debug_info=False
-            )  # Set to False to reduce response size
-            logger.info("Receipt processing complete")
+            try:
+                # Convert image_bytes to PIL Image for processing
+                image = PILImage.open(io.BytesIO(image_bytes))
+                # Convert to numpy array for OpenCV processing
+                image_np = np.array(image)
+                # Convert RGB to BGR (OpenCV format)
+                if len(image_np.shape) == 3 and image_np.shape[2] == 3:
+                    image_np = cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR)
+
+                # Process receipt using the combined method with debug info
+                result = processor.process_receipt(
+                    image_np, return_debug_info=False
+                )  # Set to False to reduce response size
+                logger.info("Receipt processing complete")
+            except Exception as e:
+                logger.error(f"Error processing image: {str(e)}")
+                return Response(
+                    {"error": f"Failed to process image: {str(e)}"},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
 
             if not result.get("success"):
                 logger.error(f"Receipt processing failed: {result.get('error')}")
@@ -118,15 +137,14 @@ class ImageView(GenericView):
                 )
 
             # Convert image_bytes to base64 for Cloudinary upload if it's from file upload
-            if hasattr(image_data, "read"):
-                image_data = base64.b64encode(image_bytes).decode("utf-8")
+            if hasattr(image_file, "read"):
+                image_file = base64.b64encode(image_bytes).decode("utf-8")
 
             # Start async Cloudinary upload
-            print("TESTING USER REQUEST", request.user)
-            default_user = CustomUser.objects.get(id=1)
+            logger.info(f"TESTING USER REQUEST: {request.user.__dict__}")
             upload_thread = threading.Thread(
                 target=self._upload_to_cloudinary_async,
-                args=(image_data, result, default_user),
+                args=(image_file, result, request.user),
             )
             upload_thread.start()
 

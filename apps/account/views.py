@@ -2,6 +2,7 @@ from django.db import transaction
 from django.contrib.auth import authenticate
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
 from .serializers import (
     GoogleSSOSerializer,
     GoogleUserInfoSerializer,
@@ -159,3 +160,21 @@ class RegistrationView(APIView):
         else:
             print(f"User {user.username} Already Exists!")
             return Response({"error": "User already exists"}, status=409)
+
+
+class CurrentUserView(APIView):
+    """
+    Get the current authenticated user's data
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, format=None):
+        try:
+            user = request.user
+            user_serializer = CustomUserSerializer(user)
+
+            return Response(user_serializer.data)
+
+        except Exception as e:
+            return Response({"error": "Invalid token"}, status=401)

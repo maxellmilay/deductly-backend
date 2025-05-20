@@ -6,6 +6,10 @@ from .serializers import ImageSerializer
 from .models import Image
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from .utils.ocr import ReceiptProcessor
+from apps.account.models import CustomUser
+import base64
+import io
+from PIL import Image as PILImage
 import logging
 import numpy as np
 import json
@@ -30,20 +34,20 @@ class ImageView(GenericView):
     permission_classes = [AllowAny]  # Allow unauthenticated access for testing
     cache_key_prefix = "image"
 
-    def _upload_to_cloudinary_async(self, image_file, result):
+    def _upload_to_cloudinary_async(self, image_data, result, user):
         """Asynchronously upload image to Cloudinary and update result."""
         try:
-            # Convert to bytes for direct upload
-            _, buffer = cv2.imencode(".jpg", image_file)
+            cloudinary_result = upload_base64_image(image_data)
+            if cloudinary_result.get("success"):
+                public_url = cloudinary_result.get("public_url")
+                public_id = cloudinary_result.get("public_id")
+                result["data"]["image_url"] = public_url
 
-            # Direct upload to Cloudinary
-            cloudinary_result = cloudinary.uploader.upload(
-                buffer.tobytes(), resource_type="image", format="jpg", folder="receipts"
-            )
-
-            if cloudinary_result:
-                result["data"]["image_url"] = cloudinary_result.get("secure_url")
-                logger.info("Successfully uploaded image to Cloudinary asynchronously")
+                # Create Image instance
+                Image.objects.create(title=public_id, user=user, image_url=public_url)
+                logger.info(
+                    "Successfully uploaded image to Cloudinary and created Image instance"
+                )
         except Exception as e:
             logger.error(f"Error in async Cloudinary upload: {str(e)}")
 
@@ -62,18 +66,35 @@ class ImageView(GenericView):
                     {"error": "No image provided"}, status=status.HTTP_400_BAD_REQUEST
                 )
 
-            logger.info("Processing image file...")
-            try:
-                # Read image file directly into numpy array
-                image_bytes = image_file.read()
-                nparr = np.frombuffer(image_bytes, np.uint8)
-                image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-                logger.info("Successfully loaded image file")
-            except Exception as e:
-                logger.error(f"Failed to load image file: {str(e)}")
-                return Response(
-                    {"error": "Invalid image file"}, status=status.HTTP_400_BAD_REQUEST
-                )
+            logger.info("Processing image data...")
+
+            # Handle file upload
+            if hasattr(image_data, "read"):
+                try:
+                    image_bytes = image_data.read()
+                    logger.info("Successfully read uploaded file")
+                except Exception as e:
+                    logger.error(f"Failed to read uploaded file: {str(e)}")
+                    return Response(
+                        {"error": "Invalid file upload"},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+            # Handle base64 string
+            else:
+                if isinstance(image_data, str) and image_data.startswith("data:image"):
+                    # Remove the data URL prefix if present
+                    image_data = image_data.split("base64,")[1]
+                    logger.info("Removed data URL prefix")
+
+                try:
+                    image_bytes = base64.b64decode(image_data)
+                    logger.info("Successfully decoded base64 image")
+                except Exception as e:
+                    logger.error(f"Failed to decode base64 image: {str(e)}")
+                    return Response(
+                        {"error": "Invalid image data"},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
 
             # Process the receipt using ReceiptProcessor
             logger.info("Starting receipt processing...")
@@ -92,9 +113,15 @@ class ImageView(GenericView):
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 )
 
+            # Convert image_bytes to base64 for Cloudinary upload if it's from file upload
+            if hasattr(image_data, "read"):
+                image_data = base64.b64encode(image_bytes).decode("utf-8")
+
             # Start async Cloudinary upload
+            default_user = CustomUser.objects.get(id=1)
             upload_thread = threading.Thread(
-                target=self._upload_to_cloudinary_async, args=(image, result)
+                target=self._upload_to_cloudinary_async,
+                args=(image_data, result, default_user),
             )
             upload_thread.start()
 

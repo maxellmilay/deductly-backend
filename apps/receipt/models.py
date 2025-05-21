@@ -4,6 +4,19 @@ from apps.account.models import CustomUser
 from apps.document.models import Document
 
 
+class ReceiptImage(models.Model):
+    title = models.CharField(max_length=255)
+    user = models.ForeignKey(
+        CustomUser, on_delete=models.CASCADE, null=True, blank=True
+    )
+    image_url = models.CharField(max_length=255)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.title
+
+
 class Vendor(models.Model):
     name = models.CharField(max_length=255)
     address = models.CharField(max_length=255)
@@ -25,9 +38,11 @@ class Receipt(models.Model):
         OTHER = "OTHER"
 
     title = models.CharField(max_length=255)
-    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
+    user = models.ForeignKey(
+        CustomUser, on_delete=models.CASCADE, null=True, blank=True
+    )
     category = models.CharField(max_length=255, choices=Category.choices)
-    image = models.ForeignKey(Image, on_delete=models.CASCADE)
+    image = models.ForeignKey(ReceiptImage, on_delete=models.CASCADE)
     total_expediture = models.DecimalField(max_digits=10, decimal_places=2)
     payment_method = models.CharField(max_length=255)
     vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE, null=True, blank=True)

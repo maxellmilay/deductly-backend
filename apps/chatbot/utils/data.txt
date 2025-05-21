@@ -126,7 +126,7 @@ Business credit card annual fees.
 If you hire employees or freelancers, wages, salaries, and 1099 contractor payments are deductible.
 
 35. Bad Debts
-If a client doesn’t pay, unpaid invoices may be deductible as a business loss.
+If a client doesn't pay, unpaid invoices may be deductible as a business loss.
 
 Example Tax Scenario for a Freelancer (2024)
 Income: $100,000
@@ -140,3 +140,267 @@ Health insurance: $5,000
 SEP IRA: $15,000
 Self-employment tax deduction: $7,500
 Taxable Income After Deductions: $64,300
+
+Philippine Tax Deductions Guide 2024
+
+1. Basic Personal Exemptions
+- Single/Married: P50,000
+- Head of Family: P50,000
+- Additional exemption for each qualified dependent: P25,000 (up to 4 dependents)
+
+2. Business Expenses Deductions
+- Ordinary and necessary business expenses
+- Salaries and wages
+- Rent expenses
+- Utilities and communication
+- Office supplies and materials
+- Professional fees
+- Insurance premiums
+- Depreciation of business assets
+- Bad debts
+- Interest expenses
+- Taxes and licenses
+
+3. Employee Benefits and Allowances
+- De minimis benefits (non-taxable):
+  * 13th month pay and other benefits up to P90,000
+  * Medical cash allowance to dependents up to P1,500 per month
+  * Rice subsidy up to P2,000 per month
+  * Uniform and clothing allowance up to P6,000 per year
+  * Actual medical assistance up to P10,000 per year
+  * Laundry allowance up to P300 per month
+  * Employee achievement awards up to P10,000 per year
+  * Gifts given during Christmas and major anniversary celebrations up to P5,000 per year
+  * Daily meal allowance for overtime work up to 25% of basic minimum wage
+  * Benefits received by an employee by virtue of a collective bargaining agreement
+
+4. Health and Medical Deductions
+- Health insurance premiums
+- Medical expenses for dependents
+- Hospitalization expenses
+- Prescription medicines
+- Medical check-ups
+- Dental expenses
+- Vision care
+- Mental health services
+- Alternative medicine treatments
+- Medical equipment and supplies
+
+5. Education-Related Deductions
+- Tuition fees
+- Books and supplies
+- School uniforms
+- Transportation to school
+- School-related activities
+- Educational software and tools
+- Online learning subscriptions
+- Professional development courses
+- Certification programs
+- Educational seminars and workshops
+
+6. Housing and Real Estate Deductions
+- Mortgage interest
+- Property taxes
+- Home insurance
+- Maintenance and repairs
+- Home office expenses
+- Rental expenses for business
+- Real estate professional fees
+- Property management fees
+- Home improvement loans
+- Real estate investment expenses
+
+7. Transportation and Travel Deductions
+- Vehicle maintenance and repairs
+- Fuel expenses
+- Parking fees
+- Toll fees
+- Public transportation costs
+- Business travel expenses
+- Vehicle insurance
+- Car registration
+- Travel insurance
+- Accommodation expenses
+
+8. Professional Development Deductions
+- Professional license fees
+- Continuing education
+- Professional association dues
+- Industry conferences
+- Training programs
+- Certification renewals
+- Professional publications
+- Industry memberships
+- Skill development courses
+- Professional networking events
+
+9. Technology and Equipment Deductions
+- Computers and peripherals
+- Software licenses
+- Internet and phone expenses
+- Office equipment
+- Mobile devices
+- Cloud storage services
+- Digital tools and apps
+- Technical support
+- Data backup services
+- Cybersecurity tools
+
+10. Retirement and Investment Deductions
+- SSS contributions
+- Pag-IBIG contributions
+- PhilHealth contributions
+- Retirement plan contributions
+- Investment management fees
+- Financial advisory fees
+- Stock market transaction fees
+- Mutual fund fees
+- Insurance premiums
+- Pension plan contributions
+
+11. Charitable Contributions
+- Donations to accredited charitable institutions
+- Disaster relief contributions
+- Educational institution donations
+- Medical institution donations
+- Religious organization donations
+- Community development projects
+- Environmental conservation programs
+- Cultural preservation initiatives
+- Sports development programs
+- Youth development programs
+
+12. Special Deductions for Specific Industries
+- Agriculture:
+  * Farm equipment and machinery
+  * Seeds and fertilizers
+  * Irrigation systems
+  * Farm buildings
+  * Livestock and poultry
+  * Crop insurance
+  * Farm labor
+  * Storage facilities
+  * Transportation of produce
+  * Farm maintenance
+
+- Manufacturing:
+  * Raw materials
+  * Production equipment
+  * Factory maintenance
+  * Quality control systems
+  * Safety equipment
+  * Industrial waste management
+  * Production software
+  * Factory utilities
+  * Warehouse expenses
+  * Shipping and logistics
+
+- Services:
+  * Professional tools
+  * Service vehicles
+  * Client entertainment
+  * Marketing materials
+  * Service software
+  * Client management systems
+  * Service training
+  * Quality assurance
+  * Customer support tools
+  * Service certifications
+
+13. Tax Credits
+- Foreign tax credits
+- Special economic zone credits
+- Renewable energy credits
+- Research and development credits
+- Export credits
+- Investment credits
+- Employment credits
+- Training credits
+- Environmental credits
+- Innovation credits
+
+14. Record-Keeping Requirements
+- Maintain receipts for all deductions
+- Keep organized expense records
+- Document business purpose
+- Track mileage and travel
+- Record time spent on business activities
+- Maintain inventory records
+- Document asset purchases
+- Track depreciation schedules
+- Keep employment records
+- Maintain client records
+
+15. Common Deduction Mistakes to Avoid
+- Claiming personal expenses as business
+- Missing documentation
+- Incorrect calculation of percentages
+- Claiming ineligible expenses
+- Missing deadlines
+- Incomplete records
+- Incorrect categorization
+- Double claiming
+- Missing receipts
+- Inadequate documentation
+
+16. Special Considerations for Freelancers
+- Home office expenses
+- Professional equipment
+- Software subscriptions
+- Internet and phone
+- Professional development
+- Marketing expenses
+- Client acquisition costs
+- Professional insurance
+- Retirement planning
+- Health insurance
+
+17. Digital Business Deductions
+- Website hosting
+- Domain registration
+- Digital marketing
+- Online tools
+- Cloud services
+- Digital security
+- Online payment fees
+- Digital content creation
+- Social media management
+- E-commerce platforms
+
+18. Environmental Deductions
+- Energy-efficient equipment
+- Renewable energy systems
+- Waste management
+- Environmental certifications
+- Green building materials
+- Sustainable practices
+- Environmental training
+- Conservation efforts
+- Recycling programs
+- Carbon offset programs
+
+19. Employee Training and Development
+- Onboarding programs
+- Skills training
+- Leadership development
+- Safety training
+- Technical training
+- Soft skills development
+- Team building
+- Professional certification
+- Industry workshops
+- Continuing education
+
+20. Business Insurance Deductions
+- General liability
+- Professional liability
+- Property insurance
+- Business interruption
+- Cyber liability
+- Employee benefits
+- Vehicle insurance
+- Equipment insurance
+- Product liability
+- Directors and officers
+
+Note: All deductions must be properly documented and supported by official receipts and other relevant documents. Consult with a tax professional for specific advice regarding your situation.

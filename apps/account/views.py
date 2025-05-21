@@ -14,6 +14,7 @@ from .utils.sso import verify_google_id_token
 from .utils.jwt import sign_as_jwt
 from .models import CustomUser
 from main.utils.generic_api import GenericView
+from rest_framework import status
 
 
 class GoogleSSOView(APIView):
@@ -178,3 +179,23 @@ class CurrentUserView(APIView):
 
         except Exception as e:
             return Response({"error": "Invalid token"}, status=401)
+
+
+class UserProfileUpdateView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def put(self, request):
+        user = request.user
+        serializer = CustomUserSerializer(user, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def patch(self, request):
+        user = request.user
+        serializer = CustomUserSerializer(user, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

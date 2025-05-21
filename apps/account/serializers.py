@@ -16,6 +16,10 @@ class GoogleUserInfoSerializer(serializers.Serializer):
 
 
 class CustomUserSerializer(serializers.ModelSerializer):
+    profile_picture = serializers.ImageField(required=False)
+    provider_sub = serializers.CharField(required=False)
+    sso_provider = serializers.CharField(required=False)
+
     class Meta:
         model = CustomUser
         fields = "__all__"

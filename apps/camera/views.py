@@ -362,7 +362,7 @@ class ImageView(GenericView):
 
             # Format numbers properly
             totals = data.get("totals", {})
-            total_amount = self._format_number(totals.get("total_expediture", 0))
+            total_amount = self._format_number(totals.get("total_expenditure", 0))
             discount = self._format_number(totals.get("discount", 0))
             vat = self._format_number(totals.get("value_added_tax", 0))
 
@@ -376,7 +376,7 @@ class ImageView(GenericView):
                         "transaction_category", "OTHER"
                     ),
                     image=receipt_image,  # Link to the created receipt image
-                    total_expediture=total_amount,
+                    total_expenditure=total_amount,
                     payment_method=data.get("transaction_info", {}).get(
                         "payment_method", ""
                     ),

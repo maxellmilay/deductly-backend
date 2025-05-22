@@ -263,7 +263,7 @@ class TextExtractor:
                 user_id=user_id,
                 category=metadata.get("transaction_category", "OTHER"),
                 image_id=image_id,
-                total_expediture=Decimal(str(totals.get("total", 0))),
+                total_expenditure=Decimal(str(totals.get("total", 0))),
                 payment_method=extracted_data.get("transaction_info", {}).get(
                     "payment_method", "Unknown"
                 ),

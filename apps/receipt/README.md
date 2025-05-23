@@ -23,7 +23,7 @@
         "created_at": "datetime",
         "updated_at": "datetime"
       },
-      "total_expediture": "decimal",
+      "total_expenditure": "decimal",
       "payment_method": "string",
       "vendor": {
         "id": "integer",
@@ -63,7 +63,7 @@
     "image": {
       "id": "integer"
     },
-    "total_expediture": "decimal",
+    "total_expenditure": "decimal",
     "payment_method": "string",
     "vendor": {
       "id": "integer"
@@ -90,7 +90,7 @@
       "created_at": "datetime",
       "updated_at": "datetime"
     },
-    "total_expediture": "decimal",
+    "total_expenditure": "decimal",
     "payment_method": "string",
     "vendor": {
       "id": "integer",

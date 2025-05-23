@@ -102,10 +102,10 @@ def generate_receipt_pdf(receipt_data):
     # Add totals
     totals = receipt_data.get("totals", {})
     totals_data = [
-        ["Subtotal:", _format_currency(totals.get("total_expediture", 0))],
+        ["Subtotal:", _format_currency(totals.get("total_expenditure", 0))],
         ["Discount:", _format_currency(totals.get("discount", 0))],
         ["VAT:", _format_currency(totals.get("value_added_tax", 0))],
-        ["Total:", _format_currency(totals.get("total_expediture", 0))],
+        ["Total:", _format_currency(totals.get("total_expenditure", 0))],
     ]
     totals_table = Table(totals_data, colWidths=[2 * inch, 2 * inch])
     totals_table.setStyle(

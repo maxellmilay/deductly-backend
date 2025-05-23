@@ -15,7 +15,7 @@ class ReceiptAdmin(admin.ModelAdmin):
         "title",
         "user",
         "category",
-        "total_expediture",
+        "total_expenditure",
         "payment_method",
         "vendor",
         "created_at",

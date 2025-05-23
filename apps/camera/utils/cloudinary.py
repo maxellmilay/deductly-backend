@@ -18,11 +18,25 @@ cloudinary.config(
 def upload_base64_image(image_data):
     """Upload base64 image to Cloudinary."""
     try:
-        # If the image data is already base64 encoded
-        if isinstance(image_data, str) and image_data.startswith("data:image"):
-            image_data = image_data.split("base64,")[1]
+        logger.info(f"Uploading image to Cloudinary: {filename} in folder {folder}")
 
-        # Upload to Cloudinary
+        # Handle data URL format (data:image/jpeg;base64,...)
+        if isinstance(base64_data, str) and base64_data.startswith("data:image"):
+            base64_data = base64_data.split("base64,")[1]
+
+        # Set upload parameters
+        upload_params = {
+            "folder": folder,
+        }
+
+        if filename:
+            upload_params["public_id"] = filename
+
+        # For profile pictures, add overwrite flag to replace existing image
+        if folder.startswith("user-profiles"):
+            upload_params["overwrite"] = True
+
+        # Upload to cloudinary
         result = cloudinary.uploader.upload(
             f"data:image/jpeg;base64,{image_data}",
             resource_type="image",

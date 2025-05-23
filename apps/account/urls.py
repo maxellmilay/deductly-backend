@@ -1,4 +1,5 @@
 from django.urls import path
+from .views import UserProfileUpdateView
 from .views import (
     GoogleSSOView,
     UserView,
@@ -6,6 +7,8 @@ from .views import (
     RegistrationView,
     CurrentUserView,
 )
+from . import views
+
 
 urlpatterns = [
     path("sso/google/", GoogleSSOView.as_view(), name="google-sso"),
@@ -13,4 +16,8 @@ urlpatterns = [
     path("authenticate/", AuthenticationView.as_view(), name="authentication"),
     path("registration/", RegistrationView.as_view(), name="registration"),
     path("me/", CurrentUserView.as_view(), name="current-user"),
+    path("me/update/", UserProfileUpdateView.as_view(), name="user-profile-update"),
+    path(
+        "profile-picture/", views.upload_profile_picture, name="upload_profile_picture"
+    ),
 ]

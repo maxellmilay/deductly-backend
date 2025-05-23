@@ -43,7 +43,7 @@ class Receipt(models.Model):
     )
     category = models.CharField(max_length=255, choices=Category.choices)
     image = models.ForeignKey(ReceiptImage, on_delete=models.CASCADE)
-    total_expediture = models.DecimalField(max_digits=10, decimal_places=2)
+    total_expenditure = models.DecimalField(max_digits=10, decimal_places=2)
     payment_method = models.CharField(max_length=255)
     vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE, null=True, blank=True)
     discount = models.DecimalField(max_digits=10, decimal_places=2)

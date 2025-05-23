@@ -36,7 +36,7 @@ def upload_base64_image(base64_data, filename=None, folder="receipts"):
         Exception: If upload fails
     """
     try:
-        logger.info(f"Uploading image to Cloudinary: {filename}")
+        logger.info(f"Uploading image to Cloudinary: {filename} in folder {folder}")
 
         # Handle data URL format (data:image/jpeg;base64,...)
         if isinstance(base64_data, str) and base64_data.startswith("data:image"):
@@ -49,6 +49,10 @@ def upload_base64_image(base64_data, filename=None, folder="receipts"):
 
         if filename:
             upload_params["public_id"] = filename
+
+        # For profile pictures, add overwrite flag to replace existing image
+        if folder.startswith("user-profiles"):
+            upload_params["overwrite"] = True
 
         # Upload to cloudinary
         result = cloudinary.uploader.upload(

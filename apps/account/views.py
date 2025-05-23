@@ -16,6 +16,11 @@ from .models import CustomUser
 from main.utils.generic_api import GenericView
 from rest_framework import status
 
+from rest_framework.decorators import api_view, permission_classes
+from django.views.decorators.csrf import csrf_exempt
+from apps.camera.utils.cloudinary import upload_base64_image
+import logging
+
 
 class GoogleSSOView(APIView):
     """
@@ -199,3 +204,84 @@ class UserProfileUpdateView(APIView):
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+logger = logging.getLogger(__name__)
+
+
+@csrf_exempt
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def upload_profile_picture(request):
+    """
+    Upload a profile picture to Cloudinary and update the user's profile
+    """
+    try:
+        logger.info("Received profile picture upload request")
+
+        # Get the image data from the request
+        image_data = request.data.get("image")
+        username = request.data.get("username")
+        old_public_id = request.data.get("oldPublicId")
+
+        logger.info(f"Processing upload for user: {username}")
+
+        if not image_data:
+            logger.error("No image data provided")
+            return Response(
+                {"success": False, "error": "No image provided"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not username:
+            username = request.user.username
+            logger.info(f"Using authenticated user's username: {username}")
+
+        # Create a folder path with the username to keep user profile pics separate
+        folder = f"user-profiles/{username}"
+        logger.info(f"Using Cloudinary folder: {folder}")
+
+        # Upload to Cloudinary
+        logger.info("Uploading to Cloudinary...")
+        cloudinary_result = upload_base64_image(
+            image_data, filename="profile-picture", folder=folder
+        )
+
+        logger.info(f"Cloudinary upload result: {cloudinary_result}")
+
+        if not cloudinary_result.get("success"):
+            logger.error(f"Cloudinary upload failed: {cloudinary_result.get('error')}")
+            return Response(
+                {
+                    "success": False,
+                    "error": cloudinary_result.get("error", "Upload failed"),
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        # Get the secure URL from the result
+        secure_url = cloudinary_result.get("secure_url")
+        public_id = cloudinary_result.get("public_id")
+
+        logger.info(f"Image uploaded successfully. URL: {secure_url}")
+
+        # Update the user's profile picture URL
+        user = request.user
+        user.profile_picture = secure_url
+        user.save()
+        logger.info(f"Updated user profile with new picture URL")
+
+        # Return the result
+        return Response(
+            {"success": True, "secure_url": secure_url, "public_id": public_id}
+        )
+
+    except Exception as e:
+        logger.error(f"Error uploading profile picture: {str(e)}")
+        import traceback
+
+        logger.error(traceback.format_exc())
+        return Response(
+            {"success": False, "error": str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )

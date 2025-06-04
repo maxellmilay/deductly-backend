@@ -75,7 +75,7 @@ class TextExtractor:
                     "subtotal": "subtotal",
                     "is_deductible": true/false,
                     "deductible_amount": "amount that can be deducted",
-                    "category": "FOOD/TRANSPORTATION/ENTERTAINMENT/OTHER"
+                    "category": "UTILITIES/FOOD/TRANSPORTATION/ENTERTAINMENT/OTHER"
                 }
             ],
             "totals": {
@@ -90,27 +90,60 @@ class TextExtractor:
                 "vat_rate": 0.12,
                 "bir_accreditation": "BIR accreditation number if available",
                 "serial_number": "serial number if available",
-                "transaction_category": "FOOD/TRANSPORTATION/ENTERTAINMENT/OTHER",
+                "transaction_category": "UTILITIES/FOOD/TRANSPORTATION/ENTERTAINMENT/OTHER",
                 "is_deductible": true/false,
                 "deductible_amount": "total amount that can be deducted"
             }
         }
 
-        For deductibility classification:
-        1. FOOD: 
-           - Business meals with clients: 50% deductible
-           - Employee meals: 100% deductible
-           - Personal meals: 0% deductible
-        2. TRANSPORTATION:
-           - Business travel: 100% deductible
-           - Personal travel: 0% deductible
-        3. ENTERTAINMENT:
-           - Business entertainment: 50% deductible
-           - Personal entertainment: 0% deductible
-        4. OTHER:
-           - Business expenses: 100% deductible
-           - Personal expenses: 0% deductible
+        Deductibility classification rules (Philippine context):
 
+            1. UTILITIES:
+            - Electric bills (electricity/power): deductible by % used for business/home office (commonly 30%-70%)
+            - Water bills: deductible by % used for business/home office (commonly 30%-70%)
+            - Internet bills: deductible by % used for business/home office (commonly 30%-70%)
+            - Mobile data or prepaid load used for client work: deductible with justification
+            - Gas bills for office use: deductible by % used for business
+            
+            IMPORTANT: For utility bills, ALWAYS set is_deductible to true and calculate deductible_amount as 50% of total (middle ground for business use) unless clearly personal use only.
+
+            2. EQUIPMENT:
+            - Laptops, monitors, printers, cameras: 100% deductible if primarily for business (can be depreciated if above ₱100k)
+            - Furniture or ergonomic gear for home office: same rule applies
+
+            3. SOFTWARE:
+            - SaaS tools (e.g., Adobe, Figma, Notion, Zoom, ChatGPT Pro): 100% deductible if used for client work
+
+            4. LEGAL:
+            - Notarial fees, government fees, business permits, professional dues (e.g., PRC, BIR registration): 100% deductible
+
+            5. TRANSPORTATION:
+            - Grab, gas, tolls, or travel directly related to client meetings or work errands: 100% deductible
+            - Personal travel or commute: not deductible
+
+            6. FOOD:
+            - Meals during client meetings: 50% deductible
+            - Personal meals: not deductible
+
+            7. ENTERTAINMENT:
+            - Only when with a client for business purposes: 50% deductible
+            - Personal entertainment (movies, hobbies): not deductible
+
+            8. OTHER:
+            - Office supplies, bank charges, courier for client deliveries: 100% deductible
+            - Any personal or lifestyle purchases: not deductible
+
+        SPECIAL INSTRUCTIONS FOR UTILITY BILLS:
+        - If the receipt contains keywords like "electric", "electricity", "power", "MERALCO", "utility", "water", "internet", "phone bill", "mobile", classify as UTILITIES category
+        - For UTILITIES category, default to is_deductible: true with deductible_amount as 50% of total unless clearly personal
+        - Look for business context clues: home office, business address, commercial rates, etc.
+
+        IMPORTANT: Return all monetary values as clean numbers only (no peso signs, no currency symbols).
+        Examples:
+        - Instead of "₱1,500.00" return "1500.00"
+        - Instead of "PHP 250" return "250"
+        - Instead of "₱50" return "50"
+        
         Extract all text from this receipt and structure it according to the above format.
         For each item, determine if it's deductible based on the context and business purpose.
         """

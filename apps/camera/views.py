@@ -311,6 +311,7 @@ class ImageView(GenericView):
             )
 
     @method_decorator(csrf_exempt)
+    @method_decorator(gzip_page)
     @action(detail=False, methods=["POST"])
     def save_receipt(self, request):
         try:
@@ -369,12 +370,16 @@ class ImageView(GenericView):
             # Create receipt
             logger.info("Creating receipt record")
             try:
+                # Get metadata for deductibility information
+                metadata = data.get("metadata", {})
+                deductible_amount = self._format_number(
+                    metadata.get("deductible_amount", 0)
+                )
+
                 receipt = Receipt.objects.create(
                     title=f"Receipt from {vendor.name}",
                     user=request.user if request.user.is_authenticated else None,
-                    category=data.get("metadata", {}).get(
-                        "transaction_category", "OTHER"
-                    ),
+                    category=metadata.get("transaction_category", "OTHER"),
                     image=receipt_image,  # Link to the created receipt image
                     total_expenditure=total_amount,
                     payment_method=data.get("transaction_info", {}).get(
@@ -383,6 +388,8 @@ class ImageView(GenericView):
                     vendor=vendor,
                     discount=discount,
                     value_added_tax=vat,
+                    is_deductible=metadata.get("is_deductible", False),
+                    deductible_amount=deductible_amount,
                     document_id=data.get(
                         "document_id"
                     ),  # Link to document if available

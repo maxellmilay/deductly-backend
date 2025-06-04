@@ -32,6 +32,7 @@ class Vendor(models.Model):
 
 class Receipt(models.Model):
     class Category(models.TextChoices):
+        UTILITIES = "UTILITIES"
         FOOD = "FOOD"
         TRANSPORTATION = "TRANSPORTATION"
         ENTERTAINMENT = "ENTERTAINMENT"
@@ -48,6 +49,8 @@ class Receipt(models.Model):
     vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE, null=True, blank=True)
     discount = models.DecimalField(max_digits=10, decimal_places=2)
     value_added_tax = models.DecimalField(max_digits=10, decimal_places=2)
+    is_deductible = models.BooleanField(default=False)
+    deductible_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     document = models.ForeignKey(
         Document, on_delete=models.CASCADE, null=True, blank=True
     )
